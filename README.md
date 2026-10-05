@@ -72,11 +72,13 @@ git push -u origin main
 ```
 
 **No se compila localmente.** Los builds de Android se hacen exclusivamente en
-GitHub Actions (`.github/workflows/build-apk.yml`):
+GitHub Actions (`.github/workflows/build-apk.yml`). La app es privada, así que
+la CI genera **sólo APK** (`--split-per-abi`: `arm64-v8a`, `armeabi-v7a`,
+`x86_64`), sin App Bundle.
 
 ```bash
-git push origin main              # → artifacts apk-release / aab-release
-git tag v0.1.0 && git push --tags # → GitHub Release con APK + AAB
+git push origin main              # → artifact apk-release
+git tag v0.1.0 && git push --tags # → GitHub Release con los APKs
 ```
 
 ### Primer uso
