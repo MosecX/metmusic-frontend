@@ -88,6 +88,18 @@ git tag v0.1.0 && git push --tags # → GitHub Release con los APKs
 3. El token por defecto ya viene cargado. Si el backend cambia de URL, editá
    *URL del backend* y tocá **Guardar**.
 
+### Si la app no arranca
+
+La pantalla inicial **nunca queda en blanco**. `AppBootstrap` monta la UI de
+inmediato y recién después abre Hive, SharedPreferences, Dio y el handle de
+audio. Si un paso falla, la app muestra en pantalla el nombre del paso, el error
+completo y un botón **Reintentar** (el mismo detalle queda en la consola).
+
+Si sólo falla la `MediaSession` de `audio_service`, la app entra en **modo
+degradado**: la música se reproduce igual, pero sin notificación de reproducción
+ni controles por Bluetooth/wearables. El resto de los fallos (Hive, permisos,
+config del backend) sí se muestran en pantalla.
+
 ---
 
 ## 3. Diseño: glassmorphism oscuro
