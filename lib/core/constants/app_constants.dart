@@ -1,0 +1,41 @@
+/// Constantes generales de la aplicación.
+class AppConstants {
+  AppConstants._();
+
+  static const String appName = 'MetMusic';
+  static const String appVersion = '0.1.0+1';
+
+  // --- Claves de SharedPreferences ---
+  static const String prefBaseUrl = 'pref_base_url';
+  static const String prefApiToken = 'pref_api_token';
+  static const String prefAudioQuality = 'pref_audio_quality';
+  static const String prefShuffle = 'pref_shuffle';
+  static const String prefRepeatMode = 'pref_repeat_mode';
+
+  // --- Hive ---
+  static const String hiveBoxHistory = 'history';
+  static const String hiveBoxFavorites = 'favorites';
+  static const String hiveBoxPlaylists = 'user_playlists';
+  static const String hiveBoxCache = 'api_cache';
+
+  // --- UI ---
+  static const double radius = 20;
+  static const double glassBlur = 6;
+  static const double pagePadding = 16;
+  static const double sectionGap = 24;
+  static const double itemGap = 12;
+  static const double miniPlayerHeight = 64;
+  static const double navBarHeight = 68;
+
+  // --- Búsqueda ---
+  static const Duration searchDebounce = Duration(milliseconds: 300);
+
+  /// Tag de la animación Hero compartida entre MiniPlayer y FullPlayer.
+  static const String heroArtworkTag = 'metmusic-player-artwork';
+
+  // --- Reproducción ---
+  static const Duration resumeRewind = Duration(seconds: 10);
+  static const int historyFlushSeconds = 10;
+  static const int defaultSearchLimit = 30;
+  static const int favoritesPageSize = 200;
+}

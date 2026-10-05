@@ -1,0 +1,55 @@
+name: metmusic
+description: "MetMusic — cliente de música personal para Android (Tidal metadata + Qobuz stream) con UI glassmorphism oscura."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Estado / DI
+  flutter_riverpod: ^2.6.1
+
+  # Navegación
+  go_router: ^14.6.2
+
+  # Audio
+  audio_service: ^0.18.15
+  just_audio: ^0.9.42
+
+  # Red
+  dio: ^5.7.0
+
+  # Imágenes
+  cached_network_image: ^3.4.1
+
+  # Almacenamiento local
+  hive_ce: ^2.9.0
+  hive_ce_flutter: ^2.2.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.3
+
+  # Animaciones
+  flutter_animate: ^4.5.0
+
+  # Iconos (set Lucide; compatible con Flutter 3.41+ donde IconData es final)
+  lucide_icons_flutter: ^3.1.22
+
+  # Video (canvas del reproductor)
+  video_player: ^2.9.2
+
+  # Utilidades
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

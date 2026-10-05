@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo de arranque: negro profundo (#0A0A0F) de MetMusic. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/metmusic_background" />
+</layer-list>

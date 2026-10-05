@@ -1,0 +1,48 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.mocks.dart"
+
+  language:
+    # Strictness alto: atrapa casts implícitos y tipos dinámicos olvidados.
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+  errors:
+    # Las deprecaciones no deben romper el build de CI.
+    deprecated_member_use: info
+    deprecated_member_use_from_same_package: info
+    # Los TODO son intencionales en puntos de extensión documentados.
+    todo: ignore
+
+linter:
+  rules:
+    # --- Estilo ---
+    - always_declare_return_types
+    - prefer_single_quotes
+    - directives_ordering
+    - sort_child_properties_last
+    - unnecessary_lambdas
+    - prefer_final_locals
+
+    # --- Seguridad / correctitud ---
+    - avoid_print
+    - avoid_void_async
+    - cancel_subscriptions
+    - close_sinks
+    - unawaited_futures
+    - use_build_context_synchronously
+
+    # --- Widgets ---
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - sized_box_for_whitespace
+    - use_colored_box
+    - use_decorated_box
+    - avoid_unnecessary_containers
