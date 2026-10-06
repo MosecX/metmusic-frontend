@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -11,17 +13,21 @@ plugins {
 // rechazaba la actualización (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), así que
 // había que desinstalar y volver a instalar. Con esta clave fija el APK se
 // instala encima del anterior.
+//
+// Ojo con el Kotlin DSL: hay un accessor `java` que tapa al paquete, así que
+// `java.util.Properties()` no compila en posición de expresión. Se importa
+// la clase y se dejan inferidos los tipos en vez de calificar `java.*`.
 val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = java.util.Properties()
+val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+    keystorePropertiesFile.inputStream().use { stream -> keystoreProperties.load(stream) }
 }
 
 // Si falta `key.properties` o el .jks (por ejemplo en un clone limpio de
 // otro contributor), se cae a la firma de debug para que el build siga andando.
-val releaseStoreFilePath = keystoreProperties.getProperty("storeFile")
-val releaseStoreFile: java.io.File? =
-    releaseStoreFilePath?.let { file(it) }?.takeIf { it.isFile }
+val storeFilePath: String? = keystoreProperties.getProperty("storeFile")
+val releaseStoreFile =
+    if (storeFilePath == null) null else file(storeFilePath).takeIf { it.isFile }
 val hasReleaseKeystore = releaseStoreFile != null
 
 android {
