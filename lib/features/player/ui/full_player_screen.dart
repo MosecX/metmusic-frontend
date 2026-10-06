@@ -75,8 +75,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     }
 
     final size = MediaQuery.sizeOf(context);
-    final topInset = MediaQuery.paddingOf(context).top;
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
     // Estética Apple Music: la portada manda. Ocupa casi todo el ancho y se
     // encoge apenas al pausar, como el artwork flotante de iOS.
     final artworkSize = size.width * 0.78;
@@ -102,56 +100,101 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       _QualityBadge(state: state),
     ];
 
-    // Si la canción tiene canvas animado, el canvas REEMPLAZA a la portada:
-    // ocupa todo el ancho arriba, a sangre, como en la referencia. Si no lo
-    // tiene, el player queda exactamente como antes: sólo la portada
-    // flotante con su encogido al pausar.
+    // Si la canción tiene canvas animado, el canvas REEMPLAZA a la portada en
+    // modo "portada expandida" (estilo Apple Music / player de referencia):
+    // el vídeo ocupa toda la zona alta —también por detrás de la info— y se
+    // disuelve en el player en vez de cortarse en un recuadro. Los canvas
+    // verticales (1080×1920) entran casi completos. Si no tiene canvas, el
+    // player queda exactamente como antes: sólo la portada flotante con su
+    // encogido al pausar.
     //
     // La portada queda de base debajo del vídeo, por si tarda en cargar o si
     // el códec falla. Con canvas no se aplica ningún `Transform`/escala sobre
     // la `Texture`: es lo que deforma los cuadros en diagonal.
     final List<Widget> columnChildren;
     if (hasCanvas) {
-      // Todo lo demás ocupa ~450 px; al canvas le queda la altura sobrante,
-      // con un tope igual al ancho para no desbordar en pantallas chicas.
-      final usable = size.height - topInset - bottomInset;
-      final canvasHeight = (usable - 470).clamp(140.0, size.width);
-
       columnChildren = [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: _Header(state: state),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          height: canvasHeight,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Center(
-                child: PlayerArtwork(
-                  url: state.artworkUrl,
-                  size: size.width,
-                  radius: 0,
-                  heroTag: AppConstants.heroArtworkTag,
-                  elevated: false,
-                ),
-              ),
-              CanvasOverlay(
-                media: canvasMedia,
-                playing: state.playing,
-                radius: 0,
-              ),
-            ],
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // La caja del vídeo mide hasta 1.48 veces su ancho: los
+              // canvas verticales entran casi completos y los cuadrados se
+              // recortan como en el player de referencia, sin que la caja
+              // se dispare en pantallas altas.
+              final videoHeight = (constraints.maxWidth * 1.48)
+                  .clamp(0.0, constraints.maxHeight)
+                  .toDouble();
+
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: videoHeight,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: PlayerArtwork(
+                            url: state.artworkUrl,
+                            size: constraints.maxWidth,
+                            radius: 0,
+                            heroTag: AppConstants.heroArtworkTag,
+                            elevated: false,
+                          ),
+                        ),
+                        CanvasOverlay(
+                          media: canvasMedia,
+                          playing: state.playing,
+                          radius: 0,
+                        ),
+                        // El vídeo se funde con el player: arriba y a los
+                        // lados este feather, abajo el velo de la info.
+                        const _CanvasFeather(),
+                      ],
+                    ),
+                  ),
+                  // La info se superpone sobre la cola del vídeo: 72 px de
+                  // fundido transparente→fondo y el resto sobre un velo casi
+                  // opaco, así el texto se lee siempre y el vídeo se sigue
+                  // insinuando por detrás en lugar de terminar en seco.
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Color(0xD70A0A0F),
+                            Color(0xE60A0A0F),
+                          ],
+                          stops: [0.0, 0.17, 1.0],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 72, 20, 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: below,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(children: below),
-        ),
-        const Spacer(),
       ];
     } else {
       // Sin canvas: sólo la portada. No se envuelve en un ClipRRect porque
@@ -228,6 +271,51 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fundido del canvas
+// ---------------------------------------------------------------------------
+
+/// Suaviza los bordes del canvas para que el vídeo se funda con el fondo
+/// del player en lugar de cortarse en seco como un cuadrado: arriba con la
+/// zona del header y a los lados con una viñeta. El borde inferior lo
+/// disuelve el velo de la info, que va justo encima.
+///
+/// Son cajas con gradiente pintadas POR ENCIMA de la textura, nunca la
+/// envuelven: un `Opacity`, `ShaderMask` o `FittedBox` alrededor de una
+/// `Texture` crea una capa con matriz y es lo que deforma los cuadros en
+/// diagonal en Android. Un gradiente encima es sólo otra forma de pintar,
+/// sin capa por delante ni por detrás del vídeo.
+class _CanvasFeather extends StatelessWidget {
+  const _CanvasFeather();
+
+  @override
+  Widget build(BuildContext context) {
+    const fade = AppColors.background;
+    // Arriba se funde con la zona del header; abajo lo hace el velo de la
+    // info (72 px de degradado) que se superpone justo después.
+    const vertical = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [fade, Colors.transparent],
+      stops: [0.0, 0.08],
+    );
+    // Los laterales hacen de viñeta suave hacia los bordes de la pantalla.
+    const horizontal = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [fade, Colors.transparent, Colors.transparent, fade],
+      stops: [0.0, 0.09, 0.91, 1.0],
+    );
+    return const Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(decoration: BoxDecoration(gradient: vertical)),
+        DecoratedBox(decoration: BoxDecoration(gradient: horizontal)),
+      ],
     );
   }
 }
