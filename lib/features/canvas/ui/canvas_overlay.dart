@@ -178,39 +178,53 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
     if (!_ready || controller == null) return const SizedBox.shrink();
 
     // `VideoPlayer` dibuja una `Texture`. Envolverla en un `FittedBox`, un
-    // `Opacity` o cualquier `Transform` obliga al compositor a escalar la
-    // textura con una matriz que no es la de su caja y en Android eso se ve
-    // como pixeles estirados en diagonal (los canvas de Spotify, que son
-    // verticales, escalaban justo por ese camino).
-    //
-    // Por eso el tamaño se calcula a mano y la textura se dibuja en su caja
-    // final, sin transformaciones encima.
+    // `Opacity` o cualquier `Transform`/escala obliga al compositor a
+    // remuestrear la textura con una matriz que no es la de su caja y en
+    // Android eso se ve como píxeles estirados en diagonal. Por eso el
+    // tamaño se calcula a mano, alineado a la grilla de píxeles real del
+    // dispositivo, y la textura se dibuja en su caja final, sin capas ni
+    // transformaciones encima.
+    final Widget content = ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final aspect = controller.value.aspectRatio <= 0
+              ? 1.0
+              : controller.value.aspectRatio;
+          final dpr = MediaQuery.devicePixelRatioOf(context);
+          Size snap(Size value) => Size(
+                (value.width * dpr).round() / dpr,
+                (value.height * dpr).round() / dpr,
+              );
+          final size = snap(
+            CanvasOverlay.fittedSize(
+              Size(constraints.maxWidth, constraints.maxHeight),
+              aspect,
+              widget.fit,
+            ),
+          );
+          if (size.isEmpty) return const SizedBox.shrink();
+          return Align(
+            alignment: Alignment.center,
+            child: SizedBox.fromSize(
+              size: size,
+              child: VideoPlayer(controller),
+            ),
+          );
+        },
+      ),
+    );
+
+    // A sangre (radio 0) no se dibuja el borde: quedaría una línea sobre
+    // los bordes de la pantalla.
+    if (widget.radius <= 0) return content;
     return DecoratedBox(
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(widget.radius),
         border: Border.all(color: AppColors.glassBorder),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.radius),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final aspect = controller.value.aspectRatio <= 0
-                ? 1.0
-                : controller.value.aspectRatio;
-            final size = CanvasOverlay.fittedSize(
-              Size(constraints.maxWidth, constraints.maxHeight),
-              aspect,
-              widget.fit,
-            );
-            if (size.isEmpty) return const SizedBox.shrink();
-            return Align(
-              alignment: Alignment.center,
-              child: SizedBox.fromSize(size: size, child: VideoPlayer(controller)),
-            );
-          },
-        ),
-      ),
+      child: content,
     );
   }
 }

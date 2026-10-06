@@ -75,47 +75,110 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     }
 
     final size = MediaQuery.sizeOf(context);
+    final topInset = MediaQuery.paddingOf(context).top;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     // Estética Apple Music: la portada manda. Ocupa casi todo el ancho y se
     // encoge apenas al pausar, como el artwork flotante de iOS.
     final artworkSize = size.width * 0.78;
 
-    // Si la canción tiene canvas animado, la portada ES el vídeo: se apila
-    // sobre el artwork estático, que queda de base mientras carga o si el
-    // track no lo tiene. Con canvas no se aplica el AnimatedScale del pausar,
-    // porque un `Transform` sobre una `Texture` es lo que deforma los cuadros.
-    //
-    // No se envuelve en un ClipRRect: PlayerArtwork dibuja su propia sombra
-    // hacia afuera y un clip la cortaría; el canvas ya se recorta solo con el
-    // mismo radio.
-    Widget artwork = SizedBox(
-      width: artworkSize,
-      height: artworkSize,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          PlayerArtwork(
-            url: state.artworkUrl,
-            size: artworkSize,
-            radius: 18,
-            heroTag: AppConstants.heroArtworkTag,
-            elevated: true,
-          ),
-          if (canvasMedia != null)
-            CanvasOverlay(
-              media: canvasMedia,
-              playing: state.playing,
-            ),
-        ],
+    // Info + controles: comunes a los dos modos (con y sin canvas).
+    final below = <Widget>[
+      _TrackInfo(state: state),
+      const SizedBox(height: 20),
+      _SeekBar(
+        state: state,
+        dragValue: _dragValue,
+        onDragStart: (value) => setState(() => _dragValue = value),
+        onDragEnd: (value) {
+          ref.read(playerProvider.notifier).seekToFraction(value);
+          setState(() => _dragValue = null);
+        },
       ),
-    );
+      const SizedBox(height: 12),
+      _MainControls(state: state, controller: controller),
+      const SizedBox(height: 24),
+      _SecondaryControls(state: state),
+      const SizedBox(height: 16),
+      _QualityBadge(state: state),
+    ];
 
-    if (!hasCanvas) {
+    // Si la canción tiene canvas animado, el canvas REEMPLAZA a la portada:
+    // ocupa todo el ancho arriba, a sangre, como en la referencia. Si no lo
+    // tiene, el player queda exactamente como antes: sólo la portada
+    // flotante con su encogido al pausar.
+    //
+    // La portada queda de base debajo del vídeo, por si tarda en cargar o si
+    // el códec falla. Con canvas no se aplica ningún `Transform`/escala sobre
+    // la `Texture`: es lo que deforma los cuadros en diagonal.
+    final List<Widget> columnChildren;
+    if (hasCanvas) {
+      // Todo lo demás ocupa ~450 px; al canvas le queda la altura sobrante,
+      // con un tope igual al ancho para no desbordar en pantallas chicas.
+      final usable = size.height - topInset - bottomInset;
+      final canvasHeight = (usable - 470).clamp(140.0, size.width);
+
+      columnChildren = [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _Header(state: state),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          height: canvasHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: PlayerArtwork(
+                  url: state.artworkUrl,
+                  size: size.width,
+                  radius: 0,
+                  heroTag: AppConstants.heroArtworkTag,
+                  elevated: false,
+                ),
+              ),
+              CanvasOverlay(
+                media: canvasMedia,
+                playing: state.playing,
+                radius: 0,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(children: below),
+        ),
+        const Spacer(),
+      ];
+    } else {
+      // Sin canvas: sólo la portada. No se envuelve en un ClipRRect porque
+      // PlayerArtwork dibuja su propia sombra hacia afuera y un clip la
+      // cortaría.
+      Widget artwork = PlayerArtwork(
+        url: state.artworkUrl,
+        size: artworkSize,
+        radius: 18,
+        heroTag: AppConstants.heroArtworkTag,
+        elevated: true,
+      );
       artwork = AnimatedScale(
         scale: state.playing ? 1 : 0.9,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
         child: artwork,
       );
+
+      columnChildren = [
+        _Header(state: state),
+        const Spacer(),
+        artwork,
+        const SizedBox(height: 32),
+        ...below,
+        const Spacer(),
+      ];
     }
 
     final body = GestureDetector(
@@ -123,62 +186,46 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       onVerticalDragUpdate: (details) {
         setState(() => _dragOffset += details.delta.dy);
       },
-      onVerticalDragEnd: (_) {
-        if (_dragOffset > 90) {
+      onVerticalDragEnd: (details) {
+        // Un sólo deslizamiento cierra el player: por la distancia
+        // recorrida o por la velocidad, porque un gesto rápido no siempre
+        // llega a los 90 px antes de soltar.
+        final flick =
+            _dragOffset > 12 && details.velocity.pixelsPerSecond.dy > 700;
+        if (_dragOffset > 90 || flick) {
           context.pop();
         } else {
           setState(() => _dragOffset = 0);
         }
       },
+      onVerticalDragCancel: () {
+        if (_dragOffset != 0) setState(() => _dragOffset = 0);
+      },
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              _Header(state: state),
-              const Spacer(),
-              artwork,
-              const SizedBox(height: 32),
-              _TrackInfo(state: state),
-              const SizedBox(height: 20),
-              _SeekBar(
-                state: state,
-                dragValue: _dragValue,
-                onDragStart: (value) => setState(() => _dragValue = value),
-                onDragEnd: (value) {
-                  ref
-                      .read(playerProvider.notifier)
-                      .seekToFraction(value);
-                  setState(() => _dragValue = null);
-                },
+        child: hasCanvas
+            ? Column(children: columnChildren)
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(children: columnChildren),
               ),
-              const SizedBox(height: 12),
-              _MainControls(state: state, controller: controller),
-              const SizedBox(height: 24),
-              _SecondaryControls(state: state),
-              const SizedBox(height: 16),
-              _QualityBadge(state: state),
-              const Spacer(),
-            ],
-          ),
-        ),
       ),
     );
 
-    // El desplazamiento del swipe también es un `Transform`: sólo se monta
-    // mientras el dedo se mueve, para que en reposo la textura quede quieta.
+    // El `Transform.translate` del swipe va SIEMPRE montado. Con offset
+    // cero la matriz es identidad y Flutter pinta al hijo en su sitio sin
+    // capa ni matriz sobre la textura; además, montarlo/desmontarlo a mitad
+    // de gesto destruía el detector y obligaba a deslizar dos veces para
+    // cerrar. Una traslación pura tampoco remuestrea la `Texture`: sólo la
+    // desplaza mientras el dedo se mueve.
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
           _Background(state: state),
-          if (_dragOffset == 0)
-            body
-          else
-            Transform.translate(
-              offset: Offset(0, _dragOffset.clamp(0, 400) * 0.35),
-              child: body,
-            ),
+          Transform.translate(
+            offset: Offset(0, _dragOffset.clamp(0.0, 400.0) * 0.35),
+            child: body,
+          ),
         ],
       ),
     );
