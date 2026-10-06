@@ -50,4 +50,33 @@ class ImageUtils {
   /// Tamaño de recurso para `cached_network_image`.
   static int cacheWidth(int logicalSize, double devicePixelRatio) =>
       (logicalSize * devicePixelRatio).round();
+
+  /// Base del CDN de imágenes de Tidal.
+  static const String tidalImageBase = 'https://resources.tidal.com/images';
+
+  /// Lado máximo que el CDN de Tidal sirve para las imágenes de artista.
+  ///
+  /// 640x640 y 1280x1280 devuelven 403; 750x750 es el tope real.
+  static const int artistImageSize = 750;
+
+  /// Convierte el `picture` de un artista en una URL servible.
+  ///
+  /// El backend devuelve el identificador del artwork **desnudo**, sin
+  /// protocolo ni host: `"65d23ddc-7b3b-4b17-bc84-b02832ddc204"`. Pasarlo
+  /// tal cual a `CachedNetworkImage` nunca carga.
+  ///
+  /// El CDN de Tidal indexa esas imágenes por el UUID con los guiones
+  /// reemplazados por `/`, y la última URL segment es el tamaño:
+  /// `https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/750x750.jpg`
+  static String artistImageUrl(String picture, {int size = artistImageSize}) {
+    if (picture.isEmpty) return '';
+
+    // Si el backend ya devuelve una URL absoluta, se respeta tal cual.
+    if (picture.startsWith('http://') || picture.startsWith('https://')) {
+      return picture;
+    }
+
+    final id = picture.replaceAll('-', '/');
+    return '$tidalImageBase/$id/${size}x$size.jpg';
+  }
 }

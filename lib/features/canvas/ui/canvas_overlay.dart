@@ -1,33 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../../services/service_providers.dart';
+import '../../../core/models/canvas.dart';
+import '../../../core/theme/app_colors.dart';
 
-/// Reproduce el canvas (vídeo animado de portada) de un track en loop.
+/// Reproduce el canvas (vídeo animado de portada) de un track.
+///
+/// El vídeo hace loop mientras la canción suena y se congela al pausar, así
+/// el visualizador sigue mandando el ritmo del player.
+///
+/// El canvas **es** la portada: ocupa exactamente la caja del artwork, se
+/// recorta al estilo `BoxFit.cover` y mantiene el borde/redondeado del
+/// reproductor para que siga leyéndose como un player y no como un vídeo
+/// suelto.
 ///
 /// - `kind: mp4` → vídeo progresivo.
 /// - `kind: hls` → playlist HLS (formatHint).
 ///
-/// Si el backend responde 404, no se renderiza nada y el player muestra el
-/// artwork estático.
-class CanvasOverlay extends ConsumerStatefulWidget {
+/// Si el backend responde 404 no se monta el widget, y si el códec falla en
+/// el dispositivo se oculta y queda el artwork estático de abajo.
+class CanvasOverlay extends StatefulWidget {
   const CanvasOverlay({
     super.key,
-    required this.trackId,
+    required this.media,
+    required this.playing,
     this.fit = BoxFit.cover,
-    this.opacity = 1.0,
+    this.radius = 18,
   });
 
-  final String trackId;
+  /// Canvas ya resuelto por `canvasProvider` (nunca null).
+  final CanvasMedia media;
+
+  /// Sigue el estado del audio: el visualizador se congela al pausar.
+  final bool playing;
+
   final BoxFit fit;
-  final double opacity;
+
+  /// Mismo radio que el artwork para que la portada no cambie de forma.
+  final double radius;
+
+  /// Tamaño al que hay que dibujar el vídeo para emular [BoxFit] sin escala
+  /// ni transformación.
+  ///
+  /// `cover` llena la caja y corta lo que sobra; `contain` entra entero y
+  /// deja el resto al artwork de abajo.
+  @visibleForTesting
+  static Size fittedSize(Size box, double aspect, BoxFit fit) {
+    if (box.isEmpty || !aspect.isFinite || aspect <= 0) return Size.zero;
+    if (fit == BoxFit.fill) return box;
+
+    final boxAspect = box.width / box.height;
+    // Píxeles enteros: una caja fraccionada muestrea la textura fuera de
+    // grilla y se ve borrosa/temblorosa en algunos dispositivos.
+    Size rounded(double width, double height) => Size(
+          width.roundToDouble().clamp(1.0, double.infinity).toDouble(),
+          height.roundToDouble().clamp(1.0, double.infinity).toDouble(),
+        );
+
+    switch (fit) {
+      case BoxFit.contain:
+        // Encaja entero: manda el lado que menos hay que escalar.
+        return boxAspect > aspect
+            ? rounded(box.height * aspect, box.height)
+            : rounded(box.width, box.width / aspect);
+      case BoxFit.cover:
+      default:
+        // Llena todo: manda el lado que hay que escalar más y el resto corta.
+        return boxAspect > aspect
+            ? rounded(box.width, box.width / aspect)
+            : rounded(box.height * aspect, box.height);
+    }
+  }
 
   @override
-  ConsumerState<CanvasOverlay> createState() => _CanvasOverlayState();
+  State<CanvasOverlay> createState() => _CanvasOverlayState();
 }
 
-class _CanvasOverlayState extends ConsumerState<CanvasOverlay> {
+class _CanvasOverlayState extends State<CanvasOverlay> {
   VideoPlayerController? _controller;
   bool _ready = false;
 
@@ -40,46 +89,81 @@ class _CanvasOverlayState extends ConsumerState<CanvasOverlay> {
   @override
   void didUpdateWidget(covariant CanvasOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.trackId != widget.trackId) {
+    if (oldWidget.media.url != widget.media.url) {
       _disposeController();
       _load();
+      return;
     }
+    if (oldWidget.playing != widget.playing) _syncPlayback();
   }
 
   Future<void> _load() async {
-    if (widget.trackId.isEmpty) return;
+    final media = widget.media;
+    if (media.url.isEmpty) return;
+    VideoPlayerController? pending;
     try {
-      final media =
-          await ref.read(canvasServiceProvider).getCanvas(widget.trackId);
-      if (media == null || media.url.isEmpty || !mounted) return;
-
       final controller = VideoPlayerController.networkUrl(
         Uri.parse(media.url),
         formatHint: media.isHls ? VideoFormat.hls : null,
       );
+      pending = controller;
       await controller.initialize();
       await controller.setLooping(true);
       await controller.setVolume(0);
+      controller.addListener(_onControllerUpdate);
+      if (widget.playing) {
+        await controller.play();
+      } else {
+        await controller.pause();
+      }
 
       if (!mounted) {
+        pending = null;
         await controller.dispose();
         return;
       }
-      await controller.play();
       setState(() {
         _controller = controller;
         _ready = true;
       });
+      pending = null;
     } catch (_) {
-      // Sin canvas (404, error de red o códec no soportado): artwork estático.
+      // Códec no soportado, red o 404 tardío: se queda el artwork estático.
+      await pending?.dispose();
       if (mounted) setState(() => _ready = false);
     }
   }
 
+  /// Un error del reproductor (códec raro, stream cortado) no debe dejar un
+  /// frame congelado o verde encima de la portada: se rinde y se ve el arte.
+  void _onControllerUpdate() {
+    final controller = _controller;
+    if (controller == null || !_ready) return;
+    if (controller.value.hasError) {
+      setState(() => _ready = false);
+    }
+  }
+
+  Future<void> _syncPlayback() async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      if (widget.playing) {
+        await controller.play();
+      } else {
+        await controller.pause();
+      }
+    } catch (_) {
+      // El controller se pudo haber disposed entre frames.
+    }
+  }
+
   void _disposeController() {
-    _controller?.dispose();
+    final controller = _controller;
     _controller = null;
     _ready = false;
+    controller?.removeListener(_onControllerUpdate);
+    controller?.dispose();
   }
 
   @override
@@ -93,23 +177,38 @@ class _CanvasOverlayState extends ConsumerState<CanvasOverlay> {
     final controller = _controller;
     if (!_ready || controller == null) return const SizedBox.shrink();
 
-    final aspect = controller.value.aspectRatio <= 0
-        ? 1.0
-        : controller.value.aspectRatio;
-
-    return Opacity(
-      opacity: widget.opacity,
-      child: FadeTransition(
-        opacity: const AlwaysStoppedAnimation(1.0),
-        child: SizedBox.expand(
-          child: FittedBox(
-            fit: widget.fit,
-            child: SizedBox(
-              width: aspect * 1000,
-              height: 1000,
-              child: VideoPlayer(controller),
-            ),
-          ),
+    // `VideoPlayer` dibuja una `Texture`. Envolverla en un `FittedBox`, un
+    // `Opacity` o cualquier `Transform` obliga al compositor a escalar la
+    // textura con una matriz que no es la de su caja y en Android eso se ve
+    // como pixeles estirados en diagonal (los canvas de Spotify, que son
+    // verticales, escalaban justo por ese camino).
+    //
+    // Por eso el tamaño se calcula a mano y la textura se dibuja en su caja
+    // final, sin transformaciones encima.
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(widget.radius),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final aspect = controller.value.aspectRatio <= 0
+                ? 1.0
+                : controller.value.aspectRatio;
+            final size = CanvasOverlay.fittedSize(
+              Size(constraints.maxWidth, constraints.maxHeight),
+              aspect,
+              widget.fit,
+            );
+            if (size.isEmpty) return const SizedBox.shrink();
+            return Align(
+              alignment: Alignment.center,
+              child: SizedBox.fromSize(size: size, child: VideoPlayer(controller)),
+            );
+          },
         ),
       ),
     );

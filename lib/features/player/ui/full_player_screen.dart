@@ -14,6 +14,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/glass_player_card.dart';
+import '../../canvas/providers/canvas_provider.dart';
 import '../../canvas/ui/canvas_overlay.dart';
 import '../../playlist/ui/add_to_playlist_sheet.dart';
 import '../models/player_state.dart';
@@ -40,6 +41,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(playerProvider);
     final controller = ref.read(playerProvider.notifier);
+
+    // Se mira siempre (aunque no haya track) para que la suscripción no cambie
+    // entre builds: sin track el provider devuelve null y no se pinta nada.
+    final trackId = state.track?.trackId ?? '';
+    final canvasMedia = ref.watch(canvasProvider(trackId)).valueOrNull;
+    final hasCanvas = canvasMedia != null;
 
     ref.listen(playerProvider.select((s) => s.track?.trackId), (_, next) {
       if (_dragValue != null) setState(() => _dragValue = null);
@@ -72,72 +79,106 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     // encoge apenas al pausar, como el artwork flotante de iOS.
     final artworkSize = size.width * 0.78;
 
+    // Si la canción tiene canvas animado, la portada ES el vídeo: se apila
+    // sobre el artwork estático, que queda de base mientras carga o si el
+    // track no lo tiene. Con canvas no se aplica el AnimatedScale del pausar,
+    // porque un `Transform` sobre una `Texture` es lo que deforma los cuadros.
+    //
+    // No se envuelve en un ClipRRect: PlayerArtwork dibuja su propia sombra
+    // hacia afuera y un clip la cortaría; el canvas ya se recorta solo con el
+    // mismo radio.
+    Widget artwork = SizedBox(
+      width: artworkSize,
+      height: artworkSize,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          PlayerArtwork(
+            url: state.artworkUrl,
+            size: artworkSize,
+            radius: 18,
+            heroTag: AppConstants.heroArtworkTag,
+            elevated: true,
+          ),
+          if (canvasMedia != null)
+            CanvasOverlay(
+              media: canvasMedia,
+              playing: state.playing,
+            ),
+        ],
+      ),
+    );
+
+    if (!hasCanvas) {
+      artwork = AnimatedScale(
+        scale: state.playing ? 1 : 0.9,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        child: artwork,
+      );
+    }
+
+    final body = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragUpdate: (details) {
+        setState(() => _dragOffset += details.delta.dy);
+      },
+      onVerticalDragEnd: (_) {
+        if (_dragOffset > 90) {
+          context.pop();
+        } else {
+          setState(() => _dragOffset = 0);
+        }
+      },
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              _Header(state: state),
+              const Spacer(),
+              artwork,
+              const SizedBox(height: 32),
+              _TrackInfo(state: state),
+              const SizedBox(height: 20),
+              _SeekBar(
+                state: state,
+                dragValue: _dragValue,
+                onDragStart: (value) => setState(() => _dragValue = value),
+                onDragEnd: (value) {
+                  ref
+                      .read(playerProvider.notifier)
+                      .seekToFraction(value);
+                  setState(() => _dragValue = null);
+                },
+              ),
+              const SizedBox(height: 12),
+              _MainControls(state: state, controller: controller),
+              const SizedBox(height: 24),
+              _SecondaryControls(state: state),
+              const SizedBox(height: 16),
+              _QualityBadge(state: state),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // El desplazamiento del swipe también es un `Transform`: sólo se monta
+    // mientras el dedo se mueve, para que en reposo la textura quede quieta.
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
           _Background(state: state),
-          Transform.translate(
-            offset: Offset(0, _dragOffset.clamp(0, 400) * 0.35),
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragUpdate: (details) {
-                setState(() => _dragOffset += details.delta.dy);
-              },
-              onVerticalDragEnd: (_) {
-                if (_dragOffset > 90) {
-                  context.pop();
-                } else {
-                  setState(() => _dragOffset = 0);
-                }
-              },
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      _Header(state: state),
-                      const Spacer(),
-                      AnimatedScale(
-                        scale: state.playing ? 1 : 0.9,
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        child: PlayerArtwork(
-                          url: state.artworkUrl,
-                          size: artworkSize,
-                          radius: 18,
-                          heroTag: AppConstants.heroArtworkTag,
-                          elevated: true,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      _TrackInfo(state: state),
-                      const SizedBox(height: 20),
-                      _SeekBar(
-                        state: state,
-                        dragValue: _dragValue,
-                        onDragStart: (value) =>
-                            setState(() => _dragValue = value),
-                        onDragEnd: (value) {
-                          ref
-                              .read(playerProvider.notifier)
-                              .seekToFraction(value);
-                          setState(() => _dragValue = null);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _MainControls(state: state, controller: controller),
-                      const SizedBox(height: 24),
-                      _SecondaryControls(state: state),
-                      const SizedBox(height: 16),
-                      _QualityBadge(state: state),
-                      const Spacer(),
-                    ],
-                  ),
-                ),
-              ),
+          if (_dragOffset == 0)
+            body
+          else
+            Transform.translate(
+              offset: Offset(0, _dragOffset.clamp(0, 400) * 0.35),
+              child: body,
             ),
-          ),
         ],
       ),
     );
@@ -148,6 +189,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 // Fondo
 // ---------------------------------------------------------------------------
 
+/// Fondo del player: el artwork desenfocado + gradiente oscuro.
+///
+/// El canvas animado va sólo en la portada (arriba), como en Apple Music: en
+/// el fondo se ve el arte fijo para que los controles se sigan leyendo y no
+/// haya dos vídeos corriendo a la vez.
 class _Background extends StatelessWidget {
   const _Background({required this.state});
 
@@ -156,7 +202,6 @@ class _Background extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artwork = state.artworkUrl;
-    final trackId = state.track?.trackId ?? '';
 
     return Stack(
       fit: StackFit.expand,
@@ -174,12 +219,6 @@ class _Background extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
-            ),
-          ),
-        if (trackId.isNotEmpty)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CanvasOverlay(trackId: trackId, opacity: 0.45),
             ),
           ),
         const DecoratedBox(

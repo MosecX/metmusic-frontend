@@ -12,3 +12,9 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Excepción (repo privado, app de prueba): esta clave SÍ va versionada para
+# que cada build de CI salga con la misma firma y el APK se instale encima
+# del anterior sin tener que desinstalar.
+!/key.properties
+!/app/metmusic-release.jks

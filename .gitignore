@@ -47,13 +47,12 @@ app.*.map.json
 /android/app/release
 /android/.gradle
 /android/local.properties
-/android/key.properties
 
-# Firmas y secretos — NUNCA versionar
-*.jks
-*.keystore
-key.properties
-upload-keystore.jks
+# Firmas — el repo es privado y la app es de prueba, así que la clave SÍ se
+# versiona a propósito: si cada build de Actions firmara con una clave de
+# debug efímera, Android rechazaría la actualización y habría que
+# desinstalar la app para instalarla. Con la misma clave el APK se instala
+# encima del anterior.
 .env
 .env.*
 android/app/google-services.json

@@ -4,6 +4,26 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Clave de firma versionada en el repo (ver .gitignore).
+//
+// Antes el release se firmaba con la clave de debug del runner, que es
+// efímera: cada build de Actions salía con una firma distinta y Android
+// rechazaba la actualización (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), así que
+// había que desinstalar y volver a instalar. Con esta clave fija el APK se
+// instala encima del anterior.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = java.util.Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+// Si falta `key.properties` o el .jks (por ejemplo en un clone limpio de
+// otro contributor), se cae a la firma de debug para que el build siga andando.
+val releaseStoreFilePath = keystoreProperties.getProperty("storeFile")
+val releaseStoreFile: java.io.File? =
+    releaseStoreFilePath?.let { file(it) }?.takeIf { it.isFile }
+val hasReleaseKeystore = releaseStoreFile != null
+
 android {
     namespace = "com.metmusic.metmusic"
     // compileSdk se deja como el default de Flutter (36) porque los plugins
@@ -28,11 +48,22 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = releaseStoreFile!!
+                storePassword = keystoreProperties.getProperty("storePassword") ?: ""
+                keyAlias = keystoreProperties.getProperty("keyAlias") ?: ""
+                keyPassword = keystoreProperties.getProperty("keyPassword") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // La app es personal y privada: se firma con las claves de debug
-            // para poder instalar los APK generados por CI.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(
+                if (hasReleaseKeystore) "release" else "debug"
+            )
             isMinifyEnabled = false
             isShrinkResources = false
         }

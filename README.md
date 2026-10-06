@@ -88,6 +88,30 @@ git tag v0.1.0 && git push --tags # → GitHub Release con los APKs
 3. El token por defecto ya viene cargado. Si el backend cambia de URL, editá
    *URL del backend* y tocá **Guardar**.
 
+### Actualizar sin desinstalar
+
+El release se firma con `android/app/metmusic-release.jks` + `android/key.properties`,
+versionados a propósito (repo privado, app de prueba). Sin una clave fija,
+Actions firmaba cada build con la clave de debug efímera del runner y Android
+rechazaba la actualización con `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, obligando
+a desinstalar. Ahora:
+
+```bash
+git push origin main    # → artifact apk-release con versionCode nuevo
+```
+
+El APK del artifact se instala **encima** del que ya está (misma firma y
+`versionCode` creciente, porque CI le pasa `--build-number` con el número de
+corrida).
+
+La única desinstalación que queda pendiente es la primera: la app instalada
+vino de la CI vieja, con otra firma. Desde la siguiente actualización ya no
+hace falta.
+
+Si el keystore o `key.properties` faltan (clone limpio de otra máquina), Gradle
+cae a la firma de debug para que el build no se rompa, pero ese APK sí exigiría
+desinstalar.
+
 ### Si la app no arranca
 
 La pantalla inicial **nunca queda en blanco**. `AppBootstrap` monta la UI de

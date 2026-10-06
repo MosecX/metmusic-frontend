@@ -25,7 +25,9 @@ class Artist {
   final List<Thumbnail> thumbnails;
 
   String get imageUrl {
-    if (picture != null && picture!.isNotEmpty) return picture!;
+    if (picture != null && picture!.isNotEmpty) {
+      return ImageUtils.artistImageUrl(picture!);
+    }
     if (thumbnails.isNotEmpty) return ImageUtils.artistThumbnail(thumbnails);
     return '';
   }
@@ -36,10 +38,10 @@ class Artist {
   /// la primera esté sana.
   List<String> get imageUrlCandidates {
     final urls = <String>[
-      if (picture != null && picture!.isNotEmpty) picture!,
+      if (picture != null && picture!.isNotEmpty)
+        ImageUtils.artistImageUrl(picture!),
       ...thumbnails.where((t) => t.url.isNotEmpty).map((t) => t.url),
     ];
-    // Deduplica conservando el orden.
     final seen = <String>{};
     return urls.where(seen.add).toList(growable: false);
   }
