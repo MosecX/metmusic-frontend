@@ -15,6 +15,7 @@ import '../core/network/api_client.dart';
 import '../core/network/auth_interceptor.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/theme/app_theme.dart';
 import '../features/player/audio/metmusic_audio_handler.dart';
 import '../services/api/stream_service.dart';
 import '../services/local/favorites_service.dart';
@@ -82,6 +83,11 @@ class AppDiagnostics {
 }
 
 /// Superficie de error legible, usable como reemplazo de `ErrorWidget.builder`.
+///
+/// Se envuelve en `Material` + `DefaultTextStyle` porque este widget se dibuja
+/// *en lugar* del widget que falló y puede quedar sin ancestro de texto: sin
+/// eso Flutter usa `_errorTextStyle` y todos los textos salen subrayados en
+/// amarillo.
 class AppErrorSurface extends StatelessWidget {
   const AppErrorSurface({super.key, required this.message});
 
@@ -89,34 +95,45 @@ class AppErrorSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Container(
-        color: AppColors.background,
-        padding: const EdgeInsets.all(16),
-        child: Scrollbar(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'MetMusic encontró un error',
-                  style: TextStyle(
-                    color: AppColors.danger,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return Material(
+      type: MaterialType.transparency,
+      child: DefaultTextStyle(
+        style: const TextStyle(
+          decoration: TextDecoration.none,
+          color: AppColors.textPrimary,
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Container(
+            color: AppColors.background,
+            padding: const EdgeInsets.all(16),
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'MetMusic encontró un error',
+                      style: TextStyle(
+                        color: AppColors.danger,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -191,7 +208,8 @@ Future<BootResult> bootApp() async {
   // 5. Audio. Si `AudioService.init` falla (MediaSession del sistema,
   // notificación, etc.) se degrada a un handler sin sesión de medios: la app
   // sigue reproduciendo, sólo se pierde la notificación/Bluetooth.
-  final handler = await _initAudio(settings: settings, client: client, steps: steps);
+  final handler =
+      await _initAudio(settings: settings, client: client, steps: steps);
 
   for (final step in steps) {
     AppDiagnostics.note('init', step);
@@ -244,7 +262,7 @@ Future<MetMusicAudioHandler> _initAudio({
     AppDiagnostics.record(
       'Audio degradado',
       'Sin sesión de medios (no habrá notificación ni controles Bluetooth): '
-      '$error',
+          '$error',
       stack,
     );
     steps.add('Audio sin MediaSession');
@@ -272,9 +290,10 @@ class BootFailure implements Exception {
 /// Raíz de la app.
 ///
 /// Arranca **siempre**: primero muestra una pantalla de carga (o de error) y
-/// recién cuando las dependencias están listas monta el `ProviderScope` con el
-/// `MaterialApp.router`. Así nunca queda una pantalla en blanco y cualquier
-/// problema de arranque se ve en el dispositivo.
+/// recién cuando las dependencias están listas monta el `ProviderContainer`
+/// raíz (vía `UncontrolledProviderScope`) con el `MaterialApp.router`. Así nunca
+/// queda una pantalla en blanco y cualquier problema de arranque se ve en el
+/// dispositivo.
 class AppBootstrap extends StatefulWidget {
   const AppBootstrap({super.key});
 
@@ -283,7 +302,11 @@ class AppBootstrap extends StatefulWidget {
 }
 
 class _AppBootstrapState extends State<AppBootstrap> {
-  BootResult? _result;
+  /// Contenedor raíz con los overrides. Se crea **después** del arranque y se
+  /// expone con `UncontrolledProviderScope` en vez de anidar otro
+  /// `ProviderScope`, para que no quede ninguna ambigüedad sobre qué
+  /// contenedor lee cada widget.
+  ProviderContainer? _container;
   BootFailure? _failure;
   bool _loading = true;
 
@@ -291,6 +314,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
   void initState() {
     super.initState();
     unawaited(_boot());
+  }
+
+  @override
+  void dispose() {
+    _container?.dispose();
+    super.dispose();
   }
 
   Future<void> _boot() async {
@@ -301,10 +330,27 @@ class _AppBootstrapState extends State<AppBootstrap> {
     try {
       final result = await bootApp();
       if (!mounted) return;
+
+      // Contenedor raíz único, creado con todos los overrides.
+      final container = ProviderContainer(
+        overrides: [
+          settingsStorageProvider.overrideWithValue(result.settings),
+          historyServiceProvider.overrideWithValue(result.history),
+          favoritesServiceProvider.overrideWithValue(result.favorites),
+          baseUrlHolderProvider.overrideWithValue(result.baseUrl),
+          apiTokenHolderProvider.overrideWithValue(result.token),
+          apiClientProvider.overrideWithValue(result.client),
+          audioHandlerProvider.overrideWithValue(result.audioHandler),
+        ],
+      );
+
+      final previous = _container;
       setState(() {
-        _result = result;
+        _container = container;
         _loading = false;
       });
+      // Se destruye recién después de que el árbol ya no lo referencia.
+      previous?.dispose();
     } on BootFailure catch (failure) {
       if (!mounted) return;
       setState(() {
@@ -323,25 +369,17 @@ class _AppBootstrapState extends State<AppBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    final result = _result;
-    if (result != null) {
-      return ProviderScope(
-        overrides: [
-          settingsStorageProvider.overrideWithValue(result.settings),
-          historyServiceProvider.overrideWithValue(result.history),
-          favoritesServiceProvider.overrideWithValue(result.favorites),
-          baseUrlHolderProvider.overrideWithValue(result.baseUrl),
-          apiTokenHolderProvider.overrideWithValue(result.token),
-          apiClientProvider.overrideWithValue(result.client),
-          audioHandlerProvider.overrideWithValue(result.audioHandler),
-        ],
+    final container = _container;
+    if (container != null) {
+      return UncontrolledProviderScope(
+        container: container,
         child: const MetMusicApp(),
       );
     }
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
+      theme: AppTheme.dark(),
       home: _loading
           ? const _BootLoading()
           : _BootError(failure: _failure, onRetry: _boot),

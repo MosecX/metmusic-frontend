@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'bootstrap/app_bootstrap.dart';
 
@@ -12,5 +11,9 @@ void main() {
   // `AppBootstrap` monta la UI de inmediato (pantalla de carga o de error) y
   // recién después abre Hive, SharedPreferences, Dio y el handle de audio.
   // Así la app nunca queda mostrando sólo el fondo de arranque.
-  runApp(const ProviderScope(child: AppBootstrap()));
+  //
+  // El contenedor de Riverpod se crea dentro de `AppBootstrap` (con los
+  // overrides) y se expone con `UncontrolledProviderScope`: no hay un
+  // `ProviderScope` raíz sin overrides que pueda quedar conectado por error.
+  runApp(const AppBootstrap());
 }
