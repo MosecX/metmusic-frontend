@@ -68,7 +68,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     }
 
     final size = MediaQuery.sizeOf(context);
-    final artworkSize = size.width * 0.62;
+    // Estética Apple Music: la portada manda. Ocupa casi todo el ancho y se
+    // encoge apenas al pausar, como el artwork flotante de iOS.
+    final artworkSize = size.width * 0.78;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -96,12 +98,17 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                     children: [
                       _Header(state: state),
                       const Spacer(),
-                      PlayerArtwork(
-                        url: state.artworkUrl,
-                        size: artworkSize,
-                        radius: 20,
-                        heroTag: AppConstants.heroArtworkTag,
-                        elevated: true,
+                      AnimatedScale(
+                        scale: state.playing ? 1 : 0.9,
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        child: PlayerArtwork(
+                          url: state.artworkUrl,
+                          size: artworkSize,
+                          radius: 18,
+                          heroTag: AppConstants.heroArtworkTag,
+                          elevated: true,
+                        ),
                       ),
                       const SizedBox(height: 32),
                       _TrackInfo(state: state),
@@ -109,9 +116,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                       _SeekBar(
                         state: state,
                         dragValue: _dragValue,
-                        onDragStart: (value) => setState(() => _dragValue = value),
+                        onDragStart: (value) =>
+                            setState(() => _dragValue = value),
                         onDragEnd: (value) {
-                          ref.read(playerProvider.notifier).seekToFraction(value);
+                          ref
+                              .read(playerProvider.notifier)
+                              .seekToFraction(value);
                           setState(() => _dragValue = null);
                         },
                       ),
@@ -269,7 +279,12 @@ class _TrackInfo extends ConsumerWidget {
                 state.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.headline,
+                style: AppTextStyles.headline.copyWith(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                  letterSpacing: -0.2,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -395,7 +410,8 @@ class _MainControls extends StatelessWidget {
           onTap: controller.next,
         ),
         _CircleIconButton(
-          icon: repeat == LoopMode.one ? LucideIcons.repeat1 : LucideIcons.repeat,
+          icon:
+              repeat == LoopMode.one ? LucideIcons.repeat1 : LucideIcons.repeat,
           active: repeat != LoopMode.off,
           tooltip: repeat == LoopMode.one
               ? 'Repetir una'

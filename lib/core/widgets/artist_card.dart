@@ -7,7 +7,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 /// Card circular de artista.
-class ArtistCard extends StatelessWidget {
+class ArtistCard extends StatefulWidget {
   const ArtistCard({
     super.key,
     required this.artist,
@@ -22,19 +22,37 @@ class ArtistCard extends StatelessWidget {
   final bool showName;
 
   @override
+  State<ArtistCard> createState() => _ArtistCardState();
+}
+
+class _ArtistCardState extends State<ArtistCard> {
+  /// Índice dentro de `artist.imageUrlCandidates`.
+  ///
+  /// El catálogo a veces sirve una `picture` que da 404 y la imagen nunca
+  /// aparece; se prueban las demás thumbs antes de rendirse.
+  int _candidate = 0;
+
+  void _nextCandidate() {
+    final total = widget.artist.imageUrlCandidates.length;
+    if (_candidate + 1 < total) setState(() => _candidate++);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final imageUrl = artist.imageUrl;
+    final candidates = widget.artist.imageUrlCandidates;
+    final imageUrl = candidates.isEmpty ? '' : candidates[_candidate];
+
     return SizedBox(
-      width: size + 12,
+      width: widget.size + 12,
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(size),
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(widget.size),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: size,
-              height: size,
+              width: widget.size,
+              height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.04),
@@ -42,26 +60,36 @@ class ArtistCard extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: imageUrl.isEmpty
-                  ? const Icon(LucideIcons.user,
-                      size: 32, color: AppColors.textTertiary)
+                  ? const _ArtistFallback()
                   : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
-                      memCacheWidth: (size * 2).round(),
-                      placeholder: (_, __) => const Icon(LucideIcons.user,
-                          size: 32, color: AppColors.textTertiary),
-                      errorWidget: (_, __, ___) => const Icon(LucideIcons.user,
-                          size: 32, color: AppColors.textTertiary),
+                      // El cross-fade por defecto componía un frame a medio
+                      // decodificar y deformaba la imagen en diagonal.
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      filterQuality: FilterQuality.medium,
+                      memCacheWidth: (widget.size * 2).round(),
+                      placeholder: (_, __) => const _ArtistFallback(),
+                      errorWidget: (_, __, ___) {
+                        // `errorWidget` no puede disparar setState durante el
+                        // build, así que se agenda para el próximo frame.
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _nextCandidate();
+                        });
+                        return const _ArtistFallback();
+                      },
                     ),
             ),
-            if (showName) ...[
+            if (widget.showName) ...[
               const SizedBox(height: 10),
               Text(
-                artist.name,
+                widget.artist.name,
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textPrimary),
               ),
             ],
           ],
@@ -69,4 +97,12 @@ class ArtistCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ArtistFallback extends StatelessWidget {
+  const _ArtistFallback();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Icon(LucideIcons.user, size: 32, color: AppColors.textTertiary);
 }

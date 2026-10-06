@@ -28,6 +28,11 @@ class PlayerArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Decodificar al tamaño real en píxeles de la pantalla: con un factor fijo
+    // de 2 el artwork grande salía reescalado desde un bitmap chico.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheWidth = (size * dpr).round();
+
     final content = Container(
       width: size,
       height: size,
@@ -51,7 +56,14 @@ class PlayerArtwork extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
-              memCacheWidth: (size * 2).round(),
+              // Sin el cross-fade por defecto de CachedNetworkImage: durante los
+              // 500 ms del fade se componía un frame a medio decodificar y la
+              // imagen se veía "cortada" en diagonal (pasaba sobre todo con los
+              // artworks de Spotify).
+              fadeInDuration: Duration.zero,
+              fadeOutDuration: Duration.zero,
+              filterQuality: FilterQuality.medium,
+              memCacheWidth: cacheWidth,
               placeholder: (_, __) => const _Fallback(),
               errorWidget: (_, __, ___) => const _Fallback(),
             ),

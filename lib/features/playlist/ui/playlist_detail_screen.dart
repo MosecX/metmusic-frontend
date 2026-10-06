@@ -12,6 +12,7 @@ import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
+import '../../../navigation/main_shell.dart';
 import '../../library/providers/library_provider.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
@@ -54,6 +55,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBody: true,
+      bottomNavigationBar: const GlobalMiniPlayer(),
       body: async.when(
         loading: () => const _Loading(),
         error: (error, _) => Stack(
@@ -150,7 +153,8 @@ class _Content extends ConsumerWidget {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: tracks.isEmpty ? null : () => ref.playAll(tracks),
+                    onPressed:
+                        tracks.isEmpty ? null : () => ref.playAll(tracks),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.black,

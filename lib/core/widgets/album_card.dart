@@ -84,6 +84,9 @@ class AlbumArtwork extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: album.thumbnailUrl,
               fit: BoxFit.cover,
+              fadeInDuration: Duration.zero,
+              fadeOutDuration: Duration.zero,
+              filterQuality: FilterQuality.medium,
               memCacheWidth: (size * 2).round(),
               placeholder: (_, __) => const ArtworkPlaceholder(),
               errorWidget: (_, __, ___) => const ArtworkPlaceholder(),

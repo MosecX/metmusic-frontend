@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/history_entry.dart';
 import '../../../core/models/user_playlist.dart';
 import '../../../core/theme/app_colors.dart';
@@ -52,6 +53,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
+    // El MiniPlayer vive en el `bottomNavigationBar` del `MainShell`, así que
+    // tapa el borde inferior del contenido. El botón "Nueva" tiene que subir
+    // cuando hay reproducción, si no el player se lo come.
+    final hasTrack = ref.watch(hasActiveTrackProvider);
+    final miniPlayerOffset = hasTrack
+        ? AppConstants.miniPlayerHeight + AppConstants.miniPlayerBottomGap
+        : 0.0;
+
     return Stack(
       children: [
         Column(
@@ -85,7 +94,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         ),
         Positioned(
           right: 16,
-          bottom: 100,
+          bottom: 100 + miniPlayerOffset,
           child: FloatingActionButton.extended(
             heroTag: 'library-create-playlist',
             backgroundColor: AppColors.accent,
@@ -94,7 +103,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             onPressed: () => _createPlaylist(context),
             icon: const Icon(LucideIcons.plus, size: 18),
             label: const Text('Nueva'),
-          ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.9, 0.9)),
+          )
+              .animate()
+              .fadeIn(duration: 300.ms)
+              .scale(begin: const Offset(0.9, 0.9)),
         ),
       ],
     );
@@ -160,8 +172,8 @@ class _PlaylistsTab extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _PlaylistTile(
               playlist: items[index],
-              onTap: () => context
-                  .push(Routes.userPlaylistPath(items[index].id)),
+              onTap: () =>
+                  context.push(Routes.userPlaylistPath(items[index].id)),
               onLongPress: () => _showMenu(context, ref, items[index]),
             ),
           ),
@@ -207,7 +219,8 @@ class _PlaylistsTab extends ConsumerWidget {
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.danger),
                 child: const Text('Eliminar'),
               ),
             ],
@@ -558,7 +571,8 @@ class _HistoryRow extends StatelessWidget {
               ),
               if (entry.playedMs > 0)
                 Text(
-                  DurationFormatter.long(Duration(milliseconds: entry.playedMs)),
+                  DurationFormatter.long(
+                      Duration(milliseconds: entry.playedMs)),
                   style: AppTextStyles.caption,
                 ),
             ],

@@ -13,6 +13,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
+import '../../../navigation/main_shell.dart';
 import '../../../navigation/routes.dart';
 import '../../player/providers/playback_actions.dart';
 import '../providers/artist_provider.dart';
@@ -29,6 +30,8 @@ class ArtistDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBody: true,
+      bottomNavigationBar: const GlobalMiniPlayer(),
       body: artist.when(
         loading: () => const _Loading(),
         error: (error, _) => Stack(
@@ -99,9 +102,8 @@ class _Content extends ConsumerWidget {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: topTracks.isEmpty
-                        ? null
-                        : () => ref.playAll(topTracks),
+                    onPressed:
+                        topTracks.isEmpty ? null : () => ref.playAll(topTracks),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.black,

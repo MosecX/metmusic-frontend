@@ -88,6 +88,9 @@ class PlaylistCover extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
+              fadeInDuration: Duration.zero,
+              fadeOutDuration: Duration.zero,
+              filterQuality: FilterQuality.medium,
               memCacheWidth: (size * 2).round(),
               placeholder: (_, __) => const Icon(LucideIcons.listMusic,
                   size: 30, color: AppColors.textTertiary),

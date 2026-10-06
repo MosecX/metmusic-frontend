@@ -12,6 +12,7 @@ import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
+import '../../../navigation/main_shell.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
 import '../providers/album_provider.dart';
@@ -28,6 +29,8 @@ class AlbumDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBody: true,
+      bottomNavigationBar: const GlobalMiniPlayer(),
       body: album.when(
         loading: () => const _Loading(),
         error: (error, _) => Stack(
@@ -38,12 +41,14 @@ class AlbumDetailScreen extends ConsumerWidget {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: GlassBackButton(onTap: () => Navigator.of(context).maybePop()),
+                    child: GlassBackButton(
+                        onTap: () => Navigator.of(context).maybePop()),
                   ),
                   Expanded(
                     child: ErrorState(
                       error: error,
-                      onRetry: () => ref.invalidate(albumDetailProvider(albumId)),
+                      onRetry: () =>
+                          ref.invalidate(albumDetailProvider(albumId)),
                     ),
                   ),
                 ],
@@ -102,9 +107,7 @@ class _Content extends ConsumerWidget {
                     label: 'Reproducir todo',
                     icon: LucideIcons.play,
                     filled: true,
-                    onTap: tracks.isEmpty
-                        ? null
-                        : () => ref.playAll(tracks),
+                    onTap: tracks.isEmpty ? null : () => ref.playAll(tracks),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -220,7 +223,8 @@ class _PlayAllButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = FilledButton.styleFrom(
-      backgroundColor: filled ? AppColors.accent : Colors.white.withValues(alpha: 0.08),
+      backgroundColor:
+          filled ? AppColors.accent : Colors.white.withValues(alpha: 0.08),
       foregroundColor: filled ? Colors.black : AppColors.textPrimary,
       padding: const EdgeInsets.symmetric(vertical: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -230,9 +234,10 @@ class _PlayAllButton extends StatelessWidget {
       onPressed: onTap,
       style: style,
       icon: Icon(icon, size: 18),
-      label: Text(label, style: AppTextStyles.button.copyWith(
-        color: filled ? Colors.black : AppColors.textPrimary,
-      )),
+      label: Text(label,
+          style: AppTextStyles.button.copyWith(
+            color: filled ? Colors.black : AppColors.textPrimary,
+          )),
     );
   }
 }

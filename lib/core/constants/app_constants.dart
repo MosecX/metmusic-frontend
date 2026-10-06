@@ -27,6 +27,12 @@ class AppConstants {
   static const double miniPlayerHeight = 64;
   static const double navBarHeight = 68;
 
+  /// Padding inferior del `MiniPlayer` dentro del `bottomNavigationBar`.
+  ///
+  /// El contenido de las pantallas lo necesita para no quedar tapado cuando hay
+  /// reproducción (por ejemplo, el botón "Nueva" de la biblioteca).
+  static const double miniPlayerBottomGap = 8;
+
   // --- Búsqueda ---
   static const Duration searchDebounce = Duration(milliseconds: 300);
 

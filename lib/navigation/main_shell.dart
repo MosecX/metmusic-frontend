@@ -44,8 +44,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             content: Text(_errorMessage(next)),
             action: SnackBarAction(
               label: 'Cerrar',
-              onPressed: () =>
-                  ref.read(playerProvider.notifier).dismissError(),
+              onPressed: () => ref.read(playerProvider.notifier).dismissError(),
             ),
           ),
         );
@@ -89,6 +88,23 @@ class _NavItem {
   final IconData icon;
   final String label;
   final String path;
+}
+
+/// MiniPlayer para las pantallas que están fuera del [MainShell]
+/// (álbum, artista, playlist), para que el reproductor siga visible.
+///
+/// No muestra nada cuando no hay track en cola. Usarlo como
+/// `bottomNavigationBar` de un `Scaffold` con `extendBody: true` deja que el
+/// contenido se deslice por debajo, igual que en el shell principal.
+class GlobalMiniPlayer extends ConsumerWidget {
+  const GlobalMiniPlayer({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasTrack = ref.watch(hasActiveTrackProvider);
+    if (!hasTrack) return const SizedBox.shrink();
+    return const MiniPlayer();
+  }
 }
 
 /// Barra de navegación inferior con estilo Glass 2.
@@ -161,8 +177,7 @@ class _NavButton extends StatelessWidget {
           ],
         ),
       ),
-    )
-        .animate(target: selected ? 1 : 0)
-        .tint(color: AppColors.accent.withValues(alpha: 0.12), duration: 200.ms);
+    ).animate(target: selected ? 1 : 0).tint(
+        color: AppColors.accent.withValues(alpha: 0.12), duration: 200.ms);
   }
 }

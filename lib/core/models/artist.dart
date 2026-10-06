@@ -26,8 +26,22 @@ class Artist {
 
   String get imageUrl {
     if (picture != null && picture!.isNotEmpty) return picture!;
-    if (thumbnails.isNotEmpty) return ImageUtils.cardThumbnail(thumbnails);
+    if (thumbnails.isNotEmpty) return ImageUtils.artistThumbnail(thumbnails);
     return '';
+  }
+
+  /// Todas las URLs candidatas, de mejor a peor.
+  ///
+  /// Se usan como cadena de reintento cuando la principal falla: depende de que
+  /// la primera esté sana.
+  List<String> get imageUrlCandidates {
+    final urls = <String>[
+      if (picture != null && picture!.isNotEmpty) picture!,
+      ...thumbnails.where((t) => t.url.isNotEmpty).map((t) => t.url),
+    ];
+    // Deduplica conservando el orden.
+    final seen = <String>{};
+    return urls.where(seen.add).toList(growable: false);
   }
 
   factory Artist.fromJson(Map<String, dynamic> json) {
@@ -39,7 +53,9 @@ class Artist {
           ? Json.str(rawPicture['url'])
           : Json.str(rawPicture),
       bio: Json.str(json['bio'] ?? json['description']),
-      albums: Json.listAt(json, 'albums').map(Album.fromJson).toList(growable: false),
+      albums: Json.listAt(json, 'albums')
+          .map(Album.fromJson)
+          .toList(growable: false),
       topTracks: Json.listAt(json, 'tracks')
           .map(Track.fromJson)
           .toList(growable: false),

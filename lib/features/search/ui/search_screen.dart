@@ -41,10 +41,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: SearchType.values.length, vsync: this);
+    // Arranca en el tipo que ya tenga el provider: si no, al volver de otra
+    // pantalla el `TabBar` marcaba "Todo" mientras los resultados seguían
+    // filtrados por el tipo anterior.
+    _tabs = TabController(
+      length: SearchType.values.length,
+      vsync: this,
+      initialIndex: SearchType.values.indexOf(ref.read(searchProvider).type),
+    );
     _tabs.addListener(() {
       if (!_tabs.indexIsChanging) {
-        ref.read(searchProvider.notifier).setType(SearchType.values[_tabs.index]);
+        ref
+            .read(searchProvider.notifier)
+            .setType(SearchType.values[_tabs.index]);
       }
     });
   }
@@ -59,6 +68,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchProvider);
+
+    // El provider manda: `clear()` u otro consumidor pueden cambiar el tipo
+    // sin pasar por el `TabBar`, y el selector tiene que seguirlo.
+    ref.listen(searchProvider.select((s) => s.type), (_, next) {
+      final index = SearchType.values.indexOf(next);
+      if (_tabs.index != index && !_tabs.indexIsChanging) _tabs.index = index;
+    });
 
     return Column(
       children: [
@@ -111,7 +127,8 @@ class _SearchField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       child: Row(
         children: [
-          const Icon(LucideIcons.search, size: 18, color: AppColors.textSecondary),
+          const Icon(LucideIcons.search,
+              size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(

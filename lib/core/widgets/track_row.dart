@@ -111,7 +111,9 @@ class TrackRow extends StatelessWidget {
                               ? LucideIcons.pause
                               : LucideIcons.play,
                           size: 18,
-                          color: isActive ? AppColors.accent : AppColors.textSecondary,
+                          color: isActive
+                              ? AppColors.accent
+                              : AppColors.textSecondary,
                         ),
                       )
                     : Text(
@@ -157,6 +159,9 @@ class _Artwork extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
+              fadeInDuration: Duration.zero,
+              fadeOutDuration: Duration.zero,
+              filterQuality: FilterQuality.medium,
               memCacheWidth: 160,
               placeholder: (_, __) => const _ArtworkFallback(),
               errorWidget: (_, __, ___) => const _ArtworkFallback(),
