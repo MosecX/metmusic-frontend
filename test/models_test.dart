@@ -15,7 +15,8 @@ void main() {
 
     test('usa horas cuando corresponde', () {
       expect(
-        DurationFormatter.format(const Duration(hours: 1, minutes: 2, seconds: 3)),
+        DurationFormatter.format(
+            const Duration(hours: 1, minutes: 2, seconds: 3)),
         '1:02:03',
       );
     });
@@ -140,6 +141,91 @@ void main() {
       expect(lyrics.syncedLines.length, 2);
       expect(lyrics.syncedLines.first.timeMs, 12500);
       expect(lyrics.syncedLines.last.timeMs, 62000);
+    });
+
+    test('lee sync_level word con palabras por línea', () {
+      final lyrics = Lyrics.fromJson(const {
+        'track_id': '1550546',
+        'lyrics': 'One more time',
+        'provider': 'lyricsplus',
+        'source': 'qApple',
+        'sync_level': 'word',
+        'is_synced': true,
+        'synced_lines': [
+          {
+            'time_ms': 30370,
+            'duration_ms': 4130,
+            'text': 'One more time',
+            'words': [
+              {'time_ms': 30370, 'duration_ms': 1500, 'text': 'One more '},
+              {'time_ms': 31870, 'duration_ms': 2630, 'text': 'time'},
+            ],
+          },
+          {'time_ms': 40000, 'text': ''},
+        ],
+      });
+
+      expect(lyrics.level, LyricsSyncLevel.word);
+      expect(lyrics.provider, 'lyricsplus');
+      expect(lyrics.source, 'qApple');
+      // La línea vacía (silencio) se filtra en el parseo.
+      expect(lyrics.syncedLines.length, 1);
+      final line = lyrics.syncedLines.first;
+      expect(line.durationMs, 4130);
+      expect(line.words.length, 2);
+      expect(line.words.first.durationMs, 1500);
+      // duration_ms manda para el fin de la palabra.
+      expect(line.wordEndMs(0), 31870);
+      expect(line.wordEndMs(1), 34500);
+    });
+
+    test('sync_level none no deriva tiempos del LRC', () {
+      final lyrics = Lyrics.fromJson(const {
+        'lyrics': 'Texto plano',
+        'sync_level': 'none',
+        'is_synced': false,
+        'lrc': '[00:12.50]Hello',
+      });
+
+      expect(lyrics.level, LyricsSyncLevel.none);
+      expect(lyrics.syncedLines, isEmpty);
+      expect(lyrics.hasSynced, isFalse);
+      expect(lyrics.hasLyrics, isTrue);
+    });
+
+    test('sync_level ausente se infiere de las palabras', () {
+      final lyrics = Lyrics.fromJson(const {
+        'is_synced': true,
+        'synced_lines': [
+          {
+            'time_ms': 0,
+            'text': 'Hola',
+            'words': [
+              {'time_ms': 0, 'text': 'Hola'},
+            ],
+          },
+        ],
+      });
+
+      expect(lyrics.level, LyricsSyncLevel.word);
+    });
+
+    test('activeLineIndex sigue la ventana del contrato', () {
+      final lyrics = Lyrics.fromJson(const {
+        'sync_level': 'line',
+        'is_synced': true,
+        'synced_lines': [
+          {'time_ms': 1000, 'duration_ms': 500, 'text': 'Primera'},
+          {'time_ms': 3000, 'text': 'Segunda'},
+        ],
+      });
+
+      expect(lyrics.activeLineIndex(999), -1); // antes del primer verso
+      expect(lyrics.activeLineIndex(1000), 0);
+      expect(lyrics.activeLineIndex(1499), 0);
+      expect(lyrics.activeLineIndex(1500), -1); // silencio con duration_ms
+      expect(lyrics.activeLineIndex(2500), -1);
+      expect(lyrics.activeLineIndex(3500), 1); // sin duration → hasta el fin
     });
   });
 

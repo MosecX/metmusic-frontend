@@ -26,6 +26,7 @@ class CanvasOverlay extends StatefulWidget {
     required this.playing,
     this.fit = BoxFit.cover,
     this.radius = 18,
+    this.onAspectChanged,
   });
 
   /// Canvas ya resuelto por `canvasProvider` (nunca null).
@@ -38,6 +39,12 @@ class CanvasOverlay extends StatefulWidget {
 
   /// Mismo radio que el artwork para que la portada no cambie de forma.
   final double radius;
+
+  /// Reporta la relación de aspecto nativa del vídeo (ancho / alto) apenas
+  /// está inicializado, para que el padre pueda ajustar la caja del canvas
+  /// al vídeo real en lugar de adivinarla y así no recortarlo ni
+  /// estirarlo.
+  final ValueChanged<double>? onAspectChanged;
 
   /// Tamaño al que hay que dibujar el vídeo para emular [BoxFit] sin escala
   /// ni transformación.
@@ -80,6 +87,9 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
   VideoPlayerController? _controller;
   bool _ready = false;
 
+  /// Último aspecto reportado al padre (evita notificaciones repetidas).
+  double? _reportedAspect;
+
   @override
   void initState() {
     super.initState();
@@ -95,11 +105,32 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
       return;
     }
     if (oldWidget.playing != widget.playing) _syncPlayback();
+    // El reporte no puede hacerse dentro del build del padre: se pospone
+    // al siguiente frame (cubre el caso en que el padre resetea su estado
+    // y el vídeo ya estaba listo).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _reportAspect();
+    });
+  }
+
+  /// Comunica el aspecto nativo del vídeo al padre una sola vez por valor.
+  void _reportAspect() {
+    final callback = widget.onAspectChanged;
+    final controller = _controller;
+    if (callback == null || controller == null || !_ready) return;
+    final aspect = controller.value.aspectRatio;
+    if (!aspect.isFinite || aspect <= 0) return;
+    if (_reportedAspect != null && (_reportedAspect! - aspect).abs() < 0.001) {
+      return;
+    }
+    _reportedAspect = aspect;
+    callback(aspect);
   }
 
   Future<void> _load() async {
     final media = widget.media;
     if (media.url.isEmpty) return;
+    _reportedAspect = null;
     VideoPlayerController? pending;
     try {
       final controller = VideoPlayerController.networkUrl(
@@ -127,6 +158,7 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
         _ready = true;
       });
       pending = null;
+      _reportAspect();
     } catch (_) {
       // Códec no soportado, red o 404 tardío: se queda el artwork estático.
       await pending?.dispose();

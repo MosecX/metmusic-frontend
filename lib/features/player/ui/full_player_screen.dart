@@ -19,6 +19,7 @@ import '../../canvas/ui/canvas_overlay.dart';
 import '../../playlist/ui/add_to_playlist_sheet.dart';
 import '../models/player_state.dart';
 import '../providers/player_provider.dart';
+import 'lyrics_sheet.dart';
 import 'player_artwork.dart';
 import 'queue_sheet.dart';
 
@@ -31,11 +32,25 @@ class FullPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
+  /// El vídeo reportó su aspecto nativo: la caja se ajusta al tamaño real
+  /// del canvas (con animación corta, para que no salte).
+  void _onCanvasAspect(double aspect) {
+    if (_canvasAspect != null && (_canvasAspect! - aspect).abs() < 0.001) {
+      return;
+    }
+    setState(() => _canvasAspect = aspect);
+  }
+
   /// Valor del slider mientras el usuario arrastra.
   double? _dragValue;
 
   /// Desplazamiento vertical para el swipe-down.
   double _dragOffset = 0;
+
+  /// Relación de aspecto nativa del canvas actual (ancho / alto). `null`
+  /// mientras el vídeo no inicializa: la caja usa la estimación clásica de
+  /// 1.48× ancho hasta que el propio vídeo reporta su tamaño real.
+  double? _canvasAspect;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +64,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     final hasCanvas = canvasMedia != null;
 
     ref.listen(playerProvider.select((s) => s.track?.trackId), (_, next) {
-      if (_dragValue != null) setState(() => _dragValue = null);
+      if (_dragValue != null || _canvasAspect != null) {
+        setState(() {
+          _dragValue = null;
+          _canvasAspect = null;
+        });
+      }
     });
 
     if (!state.hasTrack) {
@@ -122,18 +142,25 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // La caja del vídeo mide hasta 1.48 veces su ancho: los
-              // canvas verticales entran casi completos y los cuadrados se
-              // recortan como en el player de referencia, sin que la caja
-              // se dispare en pantallas altas.
-              final videoHeight = (constraints.maxWidth * 1.48)
-                  .clamp(0.0, constraints.maxHeight)
-                  .toDouble();
+              // La caja sigue el aspecto NATIVO del vídeo (9:16, 1:1…):
+              // así ningún canvas se recorta ni se estira, se muestra
+              // entero a ancho completo. Hasta que el vídeo inicializa se
+              // estima 1.48× ancho (típico canvas vertical) para no saltar
+              // al abrir el player.
+              final aspect = _canvasAspect;
+              final naturalHeight =
+                  (aspect != null && aspect.isFinite && aspect > 0)
+                      ? constraints.maxWidth / aspect
+                      : constraints.maxWidth * 1.48;
+              final videoHeight =
+                  naturalHeight.clamp(0.0, constraints.maxHeight).toDouble();
 
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  Positioned(
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
                     top: 0,
                     left: 0,
                     right: 0,
@@ -155,6 +182,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                           media: canvasMedia,
                           playing: state.playing,
                           radius: 0,
+                          onAspectChanged: _onCanvasAspect,
                         ),
                         // El vídeo se funde con el player: arriba y a los
                         // lados este feather, abajo el velo de la info.
@@ -280,41 +308,125 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 // ---------------------------------------------------------------------------
 
 /// Suaviza los bordes del canvas para que el vídeo se funda con el fondo
-/// del player en lugar de cortarse en seco como un cuadrado: arriba con la
-/// zona del header y a los lados con una viñeta. El borde inferior lo
-/// disuelve el velo de la info, que va justo encima.
+/// del player en lugar de cortarse en seco: arriba y abajo con un blur
+/// degradado (bandas de `BackdropFilter` + velo del color de fondo) y a
+/// los lados con una viñeta. El velo de la info, que va justo encima,
+/// remata el borde inferior.
 ///
-/// Son cajas con gradiente pintadas POR ENCIMA de la textura, nunca la
-/// envuelven: un `Opacity`, `ShaderMask` o `FittedBox` alrededor de una
-/// `Texture` crea una capa con matriz y es lo que deforma los cuadros en
-/// diagonal en Android. Un gradiente encima es sólo otra forma de pintar,
-/// sin capa por delante ni por detrás del vídeo.
+/// Todo se pinta POR ENCIMA de la textura como un hermano del Stack,
+/// nunca la envuelve: un `Opacity`, `ShaderMask` o `FittedBox` alrededor
+/// de una `Texture` crea una capa con matriz y es lo que deforma los
+/// cuadros en diagonal en Android. Ni los gradientes ni los
+/// `BackdropFilter` transforman la textura: sólo leen el resultado ya
+/// compuesto en pantalla.
 class _CanvasFeather extends StatelessWidget {
   const _CanvasFeather();
 
   @override
   Widget build(BuildContext context) {
     const fade = AppColors.background;
-    // Arriba se funde con la zona del header; abajo lo hace el velo de la
-    // info (72 px de degradado) que se superpone justo después.
-    const vertical = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [fade, Colors.transparent],
-      stops: [0.0, 0.08],
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight;
+        if (!height.isFinite || height <= 0) return const SizedBox.shrink();
+
+        // Bandas de desenfoque: crecen hacia el borde y el velo de la
+        // parte exterior las disuelve en el fondo del player.
+        final topBand = (height * 0.16).clamp(72.0, 150.0);
+        final bottomBand = (height * 0.20).clamp(88.0, 190.0);
+
+        // Velo que tinta las bandas y tapa la costura entre el vídeo
+        // desenfocado y el nítido: opaco en el borde y transparente ya
+        // pasada la banda.
+        final topVeil = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [fade, fade.withValues(alpha: 0.45), Colors.transparent],
+          stops: const [0.0, 0.18, 0.34],
+        );
+        final bottomVeil = LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [fade, fade.withValues(alpha: 0.45), Colors.transparent],
+          stops: const [0.0, 0.20, 0.36],
+        );
+        // Los laterales hacen de viñeta suave hacia los bordes de la
+        // pantalla.
+        const horizontal = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [fade, Colors.transparent, Colors.transparent, fade],
+          stops: [0.0, 0.09, 0.91, 1.0],
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: topBand,
+              child: const _BlurBand(alignment: Alignment.topCenter),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: bottomBand,
+              child: const _BlurBand(alignment: Alignment.bottomCenter),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(gradient: topVeil),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(gradient: bottomVeil),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(gradient: horizontal),
+            ),
+          ],
+        );
+      },
     );
-    // Los laterales hacen de viñeta suave hacia los bordes de la pantalla.
-    const horizontal = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [fade, Colors.transparent, Colors.transparent, fade],
-      stops: [0.0, 0.09, 0.91, 1.0],
-    );
-    return const Stack(
+  }
+}
+
+/// Banda de desenfoque progresivo sobre un borde del canvas.
+///
+/// Dos `BackdropFilter` acumulados: uno suave en toda la banda y otro más
+/// fuerte en la mitad pegada al borde, para que el desenfoque crece hacia
+/// afuera en lugar de cortarse con una costura dura contra el vídeo
+/// nítido. El velo del [_CanvasFeather] se pinta encima y remata la
+/// disolución hacia el fondo.
+class _BlurBand extends StatelessWidget {
+  const _BlurBand({required this.alignment});
+
+  /// Borde de la banda pegado al fondo del player (top o bottom).
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
       fit: StackFit.expand,
       children: [
-        DecoratedBox(decoration: BoxDecoration(gradient: vertical)),
-        DecoratedBox(decoration: BoxDecoration(gradient: horizontal)),
+        ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        FractionallySizedBox(
+          heightFactor: 0.5,
+          alignment: alignment,
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -714,6 +826,13 @@ class _SecondaryControls extends ConsumerWidget {
           style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
           icon: const Icon(LucideIcons.list, size: 16),
           label: const Text('Cola'),
+        ),
+        const SizedBox(width: 8),
+        TextButton.icon(
+          onPressed: () => LyricsSheet.show(context),
+          style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+          icon: const Icon(LucideIcons.captions, size: 16),
+          label: const Text('Letras'),
         ),
       ],
     );

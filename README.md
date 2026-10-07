@@ -281,8 +281,10 @@ flutter test
 
 ## 9. Preparado para lo que viene
 
-- **Letras sincronizadas:** `Lyrics` ya parsea `synced_lines` / `lrc` y
-  `lyricsProvider` está listo; falta sólo la vista.
+- **Letras sincronizadas:** `LyricsSheet` renderiza según `sync_level`
+  (karaoke por palabra, resaltado de línea o texto plano) con auto-scroll
+  e indicador de “sincronizadas”; ante un 404 de `/api/lyrics/{id}` degrada
+  a la fuente local (`LocalLyrics`) sin reintentos en bucle.
 - **Ecualizador:** `AudioPlayerService` expone el `AudioPlayer` de just_audio
   para enganchar un `AndroidEqualizer`.
 - **Descarga offline:** el historial/favoritos ya usan Hive; el mismo patrón
