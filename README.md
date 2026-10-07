@@ -9,7 +9,9 @@ y reproduce lo que el backend resuelva.
 - **Backend:** `https://tdl-qbz-api.metmusic.qzz.io`
 - **Auth:** `Authorization: Bearer {API_TOKEN}` en todas las requests a `/api/*`
   (excepto `/api/health`).
-- **Token precargado** (editable desde Settings).
+- **Token precargado** (fijo en el binario: Settings ya no expone URL ni
+  token; incluye **Estado de los servicios** y el modo de **Letras**
+  estándar/visualizer).
 
 ---
 
@@ -36,8 +38,9 @@ y reproduce lo que el backend resuelva.
 
 > 🔐 **Token en el repositorio.** El token Bearer por defecto está
 > precargado en `lib/core/constants/api_constants.dart` como pediste. Si el
-> repo se hace público alguna vez, ese token queda expuesto: cambialo desde
-> Settings y/o movelo a un `--dart-define`. Para uso privado no hay problema.
+> repo se hace público alguna vez, ese token queda expuesto: movelo a un
+> `--dart-define` o regeneralo en el backend. Para uso privado no hay
+> problema.
 
 ### Ajustes respecto a lo pedido (y por qué)
 
@@ -84,9 +87,10 @@ git tag v0.1.0 && git push --tags # → GitHub Release con los APKs
 ### Primer uso
 
 1. Instalar el APK del artifact de CI.
-2. Abrir **Ajustes → Probar** para verificar `GET /api/health`.
-3. El token por defecto ya viene cargado. Si el backend cambia de URL, editá
-   *URL del backend* y tocá **Guardar**.
+2. Abrir **Ajustes → Estado de los servicios** para ver `GET /api/health`
+   (estado, latencia y detalle de cada servicio).
+3. El token y la URL del backend ya vienen fijos en el binario. Elegí el
+   modo de **Letras** (estándar o visualizer) en **Ajustes → Letras**.
 
 ### Actualizar sin desinstalar
 
@@ -283,8 +287,11 @@ flutter test
 
 - **Letras sincronizadas:** `LyricsSheet` renderiza según `sync_level`
   (karaoke por palabra, resaltado de línea o texto plano) con auto-scroll
-  e indicador de “sincronizadas”; ante un 404 de `/api/lyrics/{id}` degrada
-  a la fuente local (`LocalLyrics`) sin reintentos en bucle.
+  e indicador de “sincronizadas”, en dos modos configurables en Ajustes —
+  **estándar** y **visualizer** (fondo animado con Ken-Burns y resplandor);
+  la línea activa sólo cambia de color, nunca de tamaño. Ante un 404 de
+  `/api/lyrics/{id}` degrada a la fuente local (`LocalLyrics`) sin
+  reintentos en bucle.
 - **Ecualizador:** `AudioPlayerService` expone el `AudioPlayer` de just_audio
   para enganchar un `AndroidEqualizer`.
 - **Descarga offline:** el historial/favoritos ya usan Hive; el mismo patrón

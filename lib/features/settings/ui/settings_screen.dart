@@ -9,10 +9,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
-import '../../../services/api/health_service.dart';
 import '../providers/settings_provider.dart';
 
-/// Ajustes: servidor, token, calidad de audio, caché y acerca de.
+/// Ajustes: estado de la API, calidad de audio, letras, caché y acerca de.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -21,30 +20,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  late final TextEditingController _url;
-  late final TextEditingController _token;
-  bool _obscureToken = true;
-
-  @override
-  void initState() {
-    super.initState();
-    final settings = ref.read(settingsProvider);
-    _url = TextEditingController(text: settings.baseUrl);
-    _token = TextEditingController(text: settings.apiToken);
-  }
-
-  @override
-  void dispose() {
-    _url.dispose();
-    _token.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final controller = ref.read(settingsProvider.notifier);
-    final test = ref.watch(connectionTestProvider);
 
     return ListView(
       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 180),
@@ -54,116 +33,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Text('Ajustes', style: AppTextStyles.headline),
         ),
 
-        // --- Servidor ---
-        _Section(
-          title: 'Servidor',
-          icon: LucideIcons.cloud,
-          children: [
-            _LabeledField(
-              label: 'URL del backend',
-              controller: _url,
-              hint: ApiConstants.baseUrl,
-              keyboardType: TextInputType.url,
-              trailing: IconButton(
-                tooltip: 'Restaurar por defecto',
-                onPressed: () {
-                  _url.text = ApiConstants.baseUrl;
-                  controller.resetBaseUrl();
-                },
-                icon: const Icon(LucideIcons.refreshCw, size: 16),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => _save(controller),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.check, size: 16),
-                    label: const Text('Guardar'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed:
-                        (test?.isLoading ?? false) ? null : _testConnection,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: (test?.isLoading ?? false)
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(LucideIcons.activity, size: 16),
-                    label: const Text('Probar'),
-                  ),
-                ),
-              ],
-            ),
-            if (test != null) ...[
-              const SizedBox(height: 12),
-              _ConnectionResult(state: test),
-            ],
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // --- Token ---
-        _Section(
-          title: 'Token de acceso',
-          icon: LucideIcons.lock,
-          children: [
-            _LabeledField(
-              label: 'Bearer token',
-              controller: _token,
-              hint: 'Token de la API',
-              obscureText: _obscureToken,
-              trailing: IconButton(
-                tooltip: _obscureToken ? 'Mostrar' : 'Ocultar',
-                onPressed: () =>
-                    setState(() => _obscureToken = !_obscureToken),
-                icon: Icon(
-                  _obscureToken ? LucideIcons.search : LucideIcons.check,
-                  size: 16,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  settings.hasCustomToken
-                      ? 'Token personalizado'
-                      : 'Token por defecto precargado',
-                  style: AppTextStyles.caption,
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {
-                    _token.text = ApiConstants.defaultApiToken;
-                    controller.resetToken();
-                  },
-                  child: const Text('Restaurar'),
-                ),
-              ],
-            ),
-          ],
+        // --- Estado de los servicios ---
+        const _Section(
+          title: 'Estado de los servicios',
+          icon: LucideIcons.server,
+          children: [_ServicesStatus()],
         ),
         const SizedBox(height: 16),
 
@@ -186,6 +60,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 16),
 
+        // --- Letras ---
+        _Section(
+          title: 'Letras',
+          icon: LucideIcons.captions,
+          children: [
+            const Text(
+              'Elegí cómo se muestran las letras sincronizadas en el '
+              'reproductor.',
+              style: AppTextStyles.caption,
+            ),
+            for (final mode in LyricsMode.values)
+              _QualityOption(
+                label: mode.label,
+                selected: mode == settings.lyricsMode,
+                onTap: () => controller.setLyricsMode(mode),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
         // --- Tema ---
         const _Section(
           title: 'Tema',
@@ -196,7 +90,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Icon(LucideIcons.moon, size: 16, color: AppColors.accent),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text('Oscuro siempre activo', style: AppTextStyles.body),
+                  child:
+                      Text('Oscuro siempre activo', style: AppTextStyles.body),
                 ),
                 Text('Único', style: AppTextStyles.caption),
               ],
@@ -258,35 +153,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> _save(SettingsController controller) async {
-    try {
-      await controller.setBaseUrl(_url.text);
-      await controller.setApiToken(_token.text);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuración guardada')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar')),
-        );
-      }
-    }
-  }
-
-  Future<void> _testConnection() async {
-    ref.read(connectionTestProvider.notifier).state = const AsyncValue.loading();
-    try {
-      final status = await ref.read(settingsProvider.notifier).testConnection();
-      ref.read(connectionTestProvider.notifier).state = AsyncValue.data(status);
-    } catch (error, stack) {
-      ref.read(connectionTestProvider.notifier).state =
-          AsyncValue.error(error, stack);
-    }
-  }
-
   Future<void> _clearCache(SettingsController controller) async {
     try {
       await LoadingOverlay.show(
@@ -342,47 +208,6 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({
-    required this.label,
-    required this.controller,
-    this.hint,
-    this.obscureText = false,
-    this.keyboardType,
-    this.trailing,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final String? hint;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          autocorrect: false,
-          enableSuggestions: false,
-          style: AppTextStyles.body,
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixIcon: trailing,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _QualityOption extends StatelessWidget {
   const _QualityOption({
     required this.label,
@@ -412,7 +237,8 @@ class _QualityOption extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.body.copyWith(
-                color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+                color:
+                    selected ? AppColors.textPrimary : AppColors.textSecondary,
               ),
             ),
           ],
@@ -422,14 +248,15 @@ class _QualityOption extends StatelessWidget {
   }
 }
 
-class _ConnectionResult extends StatelessWidget {
-  const _ConnectionResult({required this.state});
-
-  final AsyncValue<HealthStatus> state;
+/// Estado de los servicios del backend (`GET /api/health`): resumen general,
+/// cada servicio con su estado/latencia/detalle y un botón para refrescar.
+class _ServicesStatus extends ConsumerWidget {
+  const _ServicesStatus();
 
   @override
-  Widget build(BuildContext context) {
-    return state.when(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final health = ref.watch(apiHealthProvider);
+    return health.when(
       loading: () => const Row(
         children: [
           SizedBox(
@@ -438,20 +265,113 @@ class _ConnectionResult extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           SizedBox(width: 10),
-          Text('Probando conexión…', style: AppTextStyles.caption),
+          Text('Consultando el estado…', style: AppTextStyles.caption),
         ],
       ),
-      data: (value) => _ResultRow(
-        icon: LucideIcons.check,
-        color: AppColors.accent,
-        text: value.summary,
+      error: (error, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _ResultRow(
+            icon: LucideIcons.alertTriangle,
+            color: AppColors.danger,
+            text: 'No se pudo consultar el estado del backend.',
+          ),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: () => ref.invalidate(apiHealthProvider),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            icon: const Icon(LucideIcons.refreshCw, size: 15),
+            label: const Text('Reintentar'),
+          ),
+        ],
       ),
-      error: (error, _) => _ResultRow(
-        icon: LucideIcons.alertTriangle,
-        color: AppColors.danger,
-        text: 'No se pudo conectar: $error',
+      data: (status) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ResultRow(
+            icon: status.ok ? LucideIcons.check : LucideIcons.alertTriangle,
+            color: status.ok ? AppColors.accent : AppColors.danger,
+            text: status.summary,
+          ),
+          if (status.uptimeSeconds != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2),
+              child: Text(
+                'Uptime ${_formatUptime(status.uptimeSeconds!)}',
+                style: AppTextStyles.caption,
+              ),
+            ),
+          if (status.services.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final service in status.services)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          service.ok ? LucideIcons.check : LucideIcons.x,
+                          size: 14,
+                          color:
+                              service.ok ? AppColors.accent : AppColors.danger,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            service.name,
+                            style: AppTextStyles.body.copyWith(
+                              fontSize: 13.5,
+                              color: service.ok
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        if (service.latencyMs != null)
+                          Text(
+                            '${service.latencyMs!.toStringAsFixed(0)} ms',
+                            style: AppTextStyles.caption,
+                          ),
+                      ],
+                    ),
+                    if (service.detail != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 22, top: 2),
+                        child: Text(
+                          service.detail!,
+                          style: AppTextStyles.caption,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: () => ref.invalidate(apiHealthProvider),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            icon: const Icon(LucideIcons.refreshCw, size: 15),
+            label: const Text('Actualizar'),
+          ),
+        ],
       ),
     );
+  }
+
+  String _formatUptime(double seconds) {
+    final total = seconds.toInt();
+    final hours = total ~/ 3600;
+    final minutes = (total % 3600) ~/ 60;
+    if (hours <= 0) return '$minutes min';
+    return '$hours h $minutes min';
   }
 }
 

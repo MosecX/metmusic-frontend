@@ -24,7 +24,8 @@ class SettingsStorage {
 
   // --- Token ---
   String get apiToken =>
-      _prefs.getString(AppConstants.prefApiToken) ?? ApiConstants.defaultApiToken;
+      _prefs.getString(AppConstants.prefApiToken) ??
+      ApiConstants.defaultApiToken;
 
   Future<void> setApiToken(String value) =>
       _prefs.setString(AppConstants.prefApiToken, value.trim());
@@ -41,14 +42,20 @@ class SettingsStorage {
   Future<void> setAudioQuality(AudioQualityPreference quality) =>
       _prefs.setString(AppConstants.prefAudioQuality, quality.value);
 
+  // --- Letras ---
+  LyricsMode get lyricsMode =>
+      LyricsMode.fromValue(_prefs.getString(AppConstants.prefLyricsMode));
+
+  Future<void> setLyricsMode(LyricsMode mode) =>
+      _prefs.setString(AppConstants.prefLyricsMode, mode.value);
+
   // --- Preferencias de reproducción ---
   bool get shuffle => _prefs.getBool(AppConstants.prefShuffle) ?? false;
 
   Future<void> setShuffle(bool value) =>
       _prefs.setBool(AppConstants.prefShuffle, value);
 
-  int get repeatModeIndex =>
-      _prefs.getInt(AppConstants.prefRepeatMode) ?? 0;
+  int get repeatModeIndex => _prefs.getInt(AppConstants.prefRepeatMode) ?? 0;
 
   Future<void> setRepeatModeIndex(int value) =>
       _prefs.setInt(AppConstants.prefRepeatMode, value);

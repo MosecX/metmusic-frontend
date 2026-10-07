@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../services/api/health_service.dart';
 import '../../../services/service_providers.dart';
 
@@ -10,11 +11,15 @@ class SettingsState {
     required this.baseUrl,
     required this.apiToken,
     required this.audioQuality,
+    required this.lyricsMode,
   });
 
   final String baseUrl;
   final String apiToken;
   final AudioQualityPreference audioQuality;
+
+  /// Cómo se presentan las letras: estándar o visualizer.
+  final LyricsMode lyricsMode;
 
   bool get hasCustomToken => apiToken != ApiConstants.defaultApiToken;
   bool get hasCustomBaseUrl => baseUrl != ApiConstants.baseUrl;
@@ -23,11 +28,13 @@ class SettingsState {
     String? baseUrl,
     String? apiToken,
     AudioQualityPreference? audioQuality,
+    LyricsMode? lyricsMode,
   }) {
     return SettingsState(
       baseUrl: baseUrl ?? this.baseUrl,
       apiToken: apiToken ?? this.apiToken,
       audioQuality: audioQuality ?? this.audioQuality,
+      lyricsMode: lyricsMode ?? this.lyricsMode,
     );
   }
 }
@@ -41,6 +48,7 @@ class SettingsController extends StateNotifier<SettingsState> {
             baseUrl: _ref.read(settingsStorageProvider).baseUrl,
             apiToken: _ref.read(settingsStorageProvider).apiToken,
             audioQuality: _ref.read(settingsStorageProvider).audioQuality,
+            lyricsMode: _ref.read(settingsStorageProvider).lyricsMode,
           ),
         );
 
@@ -75,6 +83,12 @@ class SettingsController extends StateNotifier<SettingsState> {
     state = state.copyWith(audioQuality: quality);
   }
 
+  /// Cambia el modo de presentación de las letras.
+  Future<void> setLyricsMode(LyricsMode mode) async {
+    await _ref.read(settingsStorageProvider).setLyricsMode(mode);
+    state = state.copyWith(lyricsMode: mode);
+  }
+
   /// `GET /api/health` para el botón "Probar conexión".
   Future<HealthStatus> testConnection() {
     return _ref.read(healthServiceProvider).check();
@@ -100,3 +114,9 @@ final audioQualityProvider = Provider<AudioQualityPreference>((ref) {
 /// Estado del test de conexión (idle / loading / data / error).
 final connectionTestProvider =
     StateProvider<AsyncValue<HealthStatus>?>((ref) => null);
+
+/// `GET /api/health` — estado de los servicios del backend para la sección
+/// "Estado de los servicios" de Ajustes (se refetchea al revalidar).
+final apiHealthProvider = FutureProvider.autoDispose<HealthStatus>((ref) {
+  return ref.watch(healthServiceProvider).check();
+});

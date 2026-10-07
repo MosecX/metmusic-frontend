@@ -5,6 +5,7 @@ import 'package:metmusic/core/models/stream_info.dart';
 import 'package:metmusic/core/models/track.dart';
 import 'package:metmusic/core/network/api_endpoints.dart';
 import 'package:metmusic/core/utils/duration_formatter.dart';
+import 'package:metmusic/services/api/health_service.dart';
 
 void main() {
   group('DurationFormatter', () {
@@ -226,6 +227,39 @@ void main() {
       expect(lyrics.activeLineIndex(1500), -1); // silencio con duration_ms
       expect(lyrics.activeLineIndex(2500), -1);
       expect(lyrics.activeLineIndex(3500), 1); // sin duration → hasta el fin
+    });
+  });
+
+  group('HealthStatus', () {
+    test('parsea services, uptime y resume', () {
+      final status = HealthStatus.fromJson(const {
+        'status': 'ok',
+        'version': '1.0.0',
+        'uptime_seconds': 27797.2,
+        'services': [
+          {
+            'id': 'catalog',
+            'name': 'Catálogo (Tidal v2)',
+            'ok': true,
+            'latency_ms': 129.6,
+            'detail': 'metadatos OK',
+          },
+          {
+            'id': 'qobuz',
+            'name': 'Qobuz (stream)',
+            'ok': false,
+            'detail': 'timeout',
+          },
+        ],
+      });
+
+      expect(status.ok, isTrue);
+      expect(status.services, hasLength(2));
+      expect(status.services.first.latencyMs, 129.6);
+      expect(status.services.first.detail, 'metadatos OK');
+      expect(status.services.last.ok, isFalse);
+      expect(status.uptimeSeconds, 27797.2);
+      expect(status.summary, contains('1/2 servicios OK'));
     });
   });
 

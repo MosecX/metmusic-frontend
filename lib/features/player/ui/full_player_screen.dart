@@ -393,13 +393,18 @@ class _CanvasFeather extends StatelessWidget {
   }
 }
 
-/// Banda de desenfoque progresivo sobre un borde del canvas.
+/// Banda de desenfoque progresivo sobre un borde del canvas: el blur va
+/// de 0 % (hacia el centro del vídeo) al 100 % (pegado al borde) en un
+/// degradado continuo.
 ///
-/// Dos `BackdropFilter` acumulados: uno suave en toda la banda y otro más
-/// fuerte en la mitad pegada al borde, para que el desenfoque crece hacia
-/// afuera en lugar de cortarse con una costura dura contra el vídeo
-/// nítido. El velo del [_CanvasFeather] se pinta encima y remata la
-/// disolución hacia el fondo.
+/// Un único `BackdropFilter` se enmascara con un `ShaderMask` cuyo alpha
+/// cae linealmente desde el borde: donde el shader es transparente se ve
+/// el vídeo nítido y donde es opaco está totalmente desenfocado, con todo
+/// el rango intermedio en entre. El velo del [_CanvasFeather] se pinta
+/// encima y remata la disolución hacia el fondo.
+///
+/// Ni la máscara ni el filtro envuelven la textura en una capa con
+/// matriz: sólo leen el resultado ya compuesto en pantalla.
 class _BlurBand extends StatelessWidget {
   const _BlurBand({required this.alignment});
 
@@ -408,26 +413,29 @@ class _BlurBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        FractionallySizedBox(
-          heightFactor: 0.5,
-          alignment: alignment,
-          child: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        ),
+    // Degradado del DESENFOQUE: opaco (100 % de blur) pegado al borde del
+    // canvas y transparente (0 %, vídeo nítido) hacia el centro, con todo
+    // el rango intermedio en entre — no un recuadro con cortes duros.
+    final gradient = LinearGradient(
+      begin: alignment,
+      end: Alignment(-alignment.x, -alignment.y),
+      colors: const [
+        Colors.white,
+        Color(0xB3FFFFFF), // 70 %
+        Color(0x4DFFFFFF), // 30 %
+        Colors.transparent,
       ],
+      stops: const [0.0, 0.4, 0.75, 1.0],
+    );
+    return ClipRect(
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: gradient.createShader,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: const SizedBox.expand(),
+        ),
+      ),
     );
   }
 }

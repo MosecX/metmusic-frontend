@@ -9,6 +9,7 @@ class AppConstants {
   static const String prefBaseUrl = 'pref_base_url';
   static const String prefApiToken = 'pref_api_token';
   static const String prefAudioQuality = 'pref_audio_quality';
+  static const String prefLyricsMode = 'pref_lyrics_mode';
   static const String prefShuffle = 'pref_shuffle';
   static const String prefRepeatMode = 'pref_repeat_mode';
 
@@ -44,4 +45,21 @@ class AppConstants {
   static const int historyFlushSeconds = 10;
   static const int defaultSearchLimit = 30;
   static const int favoritesPageSize = 200;
+}
+
+/// Modo de presentación de las letras (estándar o visualizer).
+enum LyricsMode {
+  standard('standard', 'Estándar'),
+  visualizer('visualizer', 'Visualizer');
+
+  const LyricsMode(this.value, this.label);
+
+  /// Valor persistido en SharedPreferences.
+  final String value;
+  final String label;
+
+  static LyricsMode fromValue(String? raw) => LyricsMode.values.firstWhere(
+        (mode) => mode.value == raw,
+        orElse: () => LyricsMode.standard,
+      );
 }
