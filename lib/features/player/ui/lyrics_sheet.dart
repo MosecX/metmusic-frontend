@@ -10,13 +10,47 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/lyrics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/lyrics_timeline.dart';
+import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../models/player_state.dart';
 import '../providers/lyrics_provider.dart';
 import '../providers/player_provider.dart';
+import 'lyrics/lyrics_gap.dart';
+import 'lyrics/lyrics_line.dart';
 
-/// Hoja de letras con dos modos de presentación (configurable en Ajustes y
-/// conmutable desde el encabezado):
+/// Ancla vertical del scroll: la línea que importa queda al 18 % del
+/// viewport (am-lyrics `--lyrics-scroll-padding-top`), no centrada.
+const double _kScrollAnchor = 0.18;
+
+/// Tipo de fila del listado de la hoja.
+enum _RowKind { line, gap, footer }
+
+/// Fila de la lista: una línea, un hueco instrumental o el pie. Mezclarlos
+/// en un solo listado permite animar los huecos sin inventar líneas falsas.
+class _LyricsRow {
+  const _LyricsRow.line(this.index)
+      : kind = _RowKind.line,
+        gap = null;
+
+  const _LyricsRow.gap(this.gap)
+      : kind = _RowKind.gap,
+        index = -1;
+
+  const _LyricsRow.footer()
+      : kind = _RowKind.footer,
+        index = -1,
+        gap = null;
+
+  final _RowKind kind;
+
+  /// Índice en `Lyrics.syncedLines` (sólo para [_RowKind.line]).
+  final int index;
+  final LyricsGap? gap;
+}
+
+/// Hoja de letras a pantalla completa con dos modos de presentación
+/// (configurable en Ajustes y conmutable desde el encabezado):
 ///
 ///  - `standard`   : letras sincronizadas limpias sobre el artwork
 ///                   desenfocado, alineadas a la izquierda.
@@ -24,20 +58,14 @@ import '../providers/player_provider.dart';
 ///                   resplandor, con soporte de horizontal.
 ///
 /// El render se decide por `sync_level` de la API (puede variar por track):
-/// `word` → karaoke por palabra con color; `line` → resalta la línea actual;
-/// `none` → texto plano con scroll manual.
+/// `word` → wipe por palabra con borde suave; `line` → resalta la línea
+/// actual; `none` → texto plano con scroll manual.
 ///
-/// En NINGÚN modo la línea activa cambia de tamaño (sin zoom): la
-/// distinción es sólo por color, peso y resplandor.
-
-/// Distancia (en líneas) a la línea activa → sigma de desenfoque. La línea
-/// activa sale nítida y los vecinos se desenfocan suave, para que las
-/// líneas "emergen" de las borrosas al acercarse. Barato: tope en 8.
-double _lineBlur(int distance, {double intensity = 1.0}) {
-  if (distance <= 0) return 0;
-  return (2.0 + (distance - 1) * 1.4).clamp(0.0, 8.0) * intensity;
-}
-
+/// El comportamiento sigue a am-lyrics: escalera de opacidad/escala por
+/// distancia (0.8 → 0.46 y 0.98), scroll predictivo 350-500 ms antes del
+/// próximo verso anclado al 18 % del viewport, y puntos respirando en los
+/// huecos instrumentales de 7 s o más. El tamaño de caja de cada línea
+/// nunca cambia: no hay zoom ni reflow.
 class LyricsSheet extends ConsumerStatefulWidget {
   const LyricsSheet({super.key});
 
@@ -58,17 +86,21 @@ class LyricsSheet extends ConsumerStatefulWidget {
 
 class _LyricsSheetState extends ConsumerState<LyricsSheet>
     with SingleTickerProviderStateMixin {
-  /// Claves por línea para centrarla con el auto-scroll.
-  final List<GlobalKey> _lineKeys = [];
+  /// Claves por fila para llevarla al ancla con el auto-scroll.
+  final List<GlobalKey> _rowKeys = [];
 
-  /// Última línea activa vista (para disparar el auto-scroll una sola vez).
-  int _activeLine = -1;
+  /// Fila de cada línea (`índice de línea → índice de fila`), porque los
+  /// huecos y el pie desplazan los índices.
+  final List<int> _lineRow = [];
+
+  /// Última fila objetivo del scroll (para dispararlo una sola vez).
+  int _targetRow = -1;
 
   /// Momento del último arrastre del usuario: el auto-scroll respeta una
   /// pausa para no pelearse con el dedo.
   DateTime _lastUserScroll = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// Altura medida de una línea (para estimar el scroll de líneas lejanas).
+  /// Altura medida de una fila (para estimar el scroll de filas lejanas).
   double? _measuredItemHeight;
 
   /// Controlador del `DraggableScrollableSheet` (la lista usa el mismo).
@@ -80,55 +112,79 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
   bool get _canAutoScroll =>
       DateTime.now().difference(_lastUserScroll) > const Duration(seconds: 3);
 
-  void _syncLineKeys(int count) {
-    while (_lineKeys.length < count) {
-      _lineKeys.add(GlobalKey());
+  void _syncRowKeys(int count) {
+    while (_rowKeys.length < count) {
+      _rowKeys.add(GlobalKey());
     }
-    if (_lineKeys.length > count) {
-      _lineKeys.removeRange(count, _lineKeys.length);
+    if (_rowKeys.length > count) {
+      _rowKeys.removeRange(count, _rowKeys.length);
     }
   }
 
-  /// Centra la línea [index] en el viewport. Si la línea todavía no se
-  /// construyó (lista perezosa), estima el offset y reintenta el siguiente
-  /// frame, como en el player de referencia.
-  void _scrollToLine(int index, [int attempt = 0]) {
-    if (!mounted || index < 0 || index >= _lineKeys.length) return;
+  /// Intercala huecos y pie alrededor de las líneas. Sólo tiene sentido
+  /// con letras sincronizadas.
+  List<_LyricsRow> _buildRows(
+    List<SyncedLine> lines,
+    Lyrics? lyrics,
+    int songEndMs,
+  ) {
+    final rows = <_LyricsRow>[];
+    if (lines.isEmpty) return rows;
+    final gaps = instrumentalGaps(
+      lines,
+      songEndMs: songEndMs > 0 ? songEndMs : null,
+    );
+    var gapIndex = 0;
+    for (var i = 0; i <= lines.length; i++) {
+      if (gapIndex < gaps.length && gaps[gapIndex].beforeIndex == i) {
+        rows.add(_LyricsRow.gap(gaps[gapIndex]));
+        gapIndex++;
+      }
+      if (i < lines.length) {
+        _lineRow.add(rows.length);
+        rows.add(_LyricsRow.line(i));
+      }
+    }
+    rows.add(const _LyricsRow.footer());
+    return rows;
+  }
+
+  /// Lleva la fila [row] al ancla del 18 % del viewport. Si la fila todavía
+  /// no se construyó (lista perezosa), estima el offset y reintenta el
+  /// siguiente frame, como en el player de referencia.
+  void _scrollToRow(int row, {required Duration duration, int attempt = 0}) {
+    if (!mounted || row < 0 || row >= _rowKeys.length) return;
     if (!_canAutoScroll) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_canAutoScroll) return;
       final controller = _sheetController;
       if (controller == null || !controller.hasClients) return;
       final position = controller.position;
+      final anchor = position.viewportDimension * _kScrollAnchor;
 
-      final lineContext = _lineKeys[index].currentContext;
-      if (lineContext != null) {
-        final lineBox = lineContext.findRenderObject() as RenderBox?;
+      final rowContext = _rowKeys[row].currentContext;
+      if (rowContext != null) {
+        final rowBox = rowContext.findRenderObject() as RenderBox?;
         final scrollBox =
             position.context.storageContext.findRenderObject() as RenderBox?;
-        if (lineBox != null && scrollBox != null && lineBox.size.height > 0) {
-          _measuredItemHeight ??= lineBox.size.height;
-          final lineOffset = lineBox.localToGlobal(Offset.zero).dy -
+        if (rowBox != null && scrollBox != null && rowBox.size.height > 0) {
+          _measuredItemHeight ??= rowBox.size.height;
+          final rowOffset = rowBox.localToGlobal(Offset.zero).dy -
               scrollBox.localToGlobal(Offset.zero).dy +
               controller.offset;
-          final target = lineOffset -
-              (position.viewportDimension / 2) +
-              (lineBox.size.height / 2);
           controller.animateTo(
-            target.clamp(0.0, position.maxScrollExtent),
-            duration: const Duration(milliseconds: 550),
-            curve: Curves.easeInOutCubic,
+            (rowOffset - anchor).clamp(0.0, position.maxScrollExtent),
+            duration: duration,
+            curve: Curves.easeOutCubic,
           );
           return;
         }
       }
       if (attempt >= 40) return;
       final itemHeight = _measuredItemHeight ?? 64;
-      final estimated = (index * itemHeight) -
-          (position.viewportDimension / 2) +
-          (itemHeight / 2);
+      final estimated = (row * itemHeight) - anchor;
       controller.jumpTo(estimated.clamp(0.0, position.maxScrollExtent));
-      _scrollToLine(index, attempt + 1);
+      _scrollToRow(row, duration: duration, attempt: attempt + 1);
     });
   }
 
@@ -177,16 +233,27 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     final synced =
         lyrics != null && lyrics.hasSynced && level != LyricsSyncLevel.none;
 
-    // Las claves deben existir ANTES de programar el scroll a la línea
-    // activa (al abrir a media canción la lista es perezosa y se estima).
-    _syncLineKeys(lines.length);
+    // Las claves deben existir ANTES de programar el scroll a la fila
+    // objetivo (al abrir a media canción la lista es perezosa y se estima).
+    _lineRow.clear();
+    final rows = synced
+        ? _buildRows(lines, lyrics, state.duration.inMilliseconds)
+        : const <_LyricsRow>[];
+    _syncRowKeys(rows.length);
 
-    final activeIndex = synced ? lyrics.activeLineIndex(positionMs) : -1;
-    if (activeIndex != _activeLine) {
-      final previous = _activeLine;
-      _activeLine = activeIndex;
-      if (activeIndex >= 0 && activeIndex != previous) {
-        _scrollToLine(activeIndex);
+    // `activeLineIndex` sólo se enciende mientras la línea suena; en los
+    // huecos instrumentales devuelve -1 y manda la línea ancla.
+    final litIndex = synced ? lyrics.activeLineIndex(positionMs) : -1;
+    final anchorIndex = synced ? lyricsAnchorIndex(lines, positionMs) : -1;
+
+    final target = synced
+        ? predictiveScrollTarget(lines, anchorIndex, positionMs)
+        : null;
+    if (target != null && target.line < _lineRow.length) {
+      final row = _lineRow[target.line];
+      if (row != _targetRow) {
+        _targetRow = row;
+        _scrollToRow(row, duration: target.duration);
       }
     }
 
@@ -212,7 +279,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
           lines: lines,
           level: level,
           synced: synced,
-          activeIndex: activeIndex,
+          rows: rows,
+          litIndex: litIndex,
+          anchorIndex: anchorIndex,
           positionMs: positionMs,
           lyricsAsync: lyricsAsync,
           scrollController: scrollController,
@@ -232,7 +301,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     required List<SyncedLine> lines,
     required LyricsSyncLevel level,
     required bool synced,
-    required int activeIndex,
+    required List<_LyricsRow> rows,
+    required int litIndex,
+    required int anchorIndex,
     required int positionMs,
     required AsyncValue<Lyrics?> lyricsAsync,
     required ScrollController scrollController,
@@ -244,6 +315,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     final hasText = lyrics != null && lyrics.hasLyrics;
     // `none` (o líneas no utilizables): sólo texto plano, scroll a mano.
     final plainOnly = level == LyricsSyncLevel.none || lines.isEmpty;
+    final loading = lyricsAsync.isLoading;
 
     final Widget list = NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotifications,
@@ -251,36 +323,13 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
         controller: scrollController,
         slivers: [
           SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                landscape && visualizer ? 40 : 28,
-                MediaQuery.paddingOf(context).top + 22,
-                landscape && visualizer ? 40 : 20,
-                26,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.textDisabled,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Text('Letra', style: AppTextStyles.headline),
-                  const Spacer(),
-                  if (synced) ...[
-                    _syncedChip(),
-                    const SizedBox(width: 4),
-                  ],
-                  _modeToggle(),
-                ],
-              ),
-            ),
+            child: _header(synced: synced, landscape: landscape),
           ),
-          if (!hasText)
+          if (loading)
+            SliverToBoxAdapter(
+              child: _loadingSkeleton(landscape: landscape),
+            )
+          else if (!hasText)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
@@ -319,57 +368,25 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
                 MediaQuery.paddingOf(context).bottom + 120,
               ),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final line = lines[index];
-                  final active = index == activeIndex;
-                  final passed =
-                      !active && activeIndex >= 0 && index < activeIndex;
-                  final distance =
-                      activeIndex < 0 ? 0 : (index - activeIndex).abs();
-                  final span = _lineSpan(
-                    line,
-                    active: active,
+                delegate: SliverChildBuilderDelegate((context, rowIndex) {
+                  return _buildRow(
+                    rows[rowIndex],
+                    lines: lines,
+                    lyrics: lyrics,
                     level: level,
+                    litIndex: litIndex,
+                    anchorIndex: anchorIndex,
                     positionMs: positionMs,
+                    visualizer: visualizer,
+                    landscape: landscape,
+                    rowKey: _rowKeys[rowIndex],
                   );
-                  if (visualizer) {
-                    return _VisualizerLine(
-                      key: _lineKeys[index],
-                      span: span,
-                      active: active,
-                      passed: passed,
-                      landscape: landscape,
-                      blur: _lineBlur(distance),
-                      onTap: () => _seekToLine(line),
-                    );
-                  }
-                  return _StandardLine(
-                    key: _lineKeys[index],
-                    span: span,
-                    active: active,
-                    passed: passed,
-                    blur: _lineBlur(distance, intensity: 0.4),
-                    onTap: () => _seekToLine(line),
-                  );
-                }, childCount: lines.length),
+                }, childCount: rows.length),
               ),
             ),
         ],
       ),
     );
-
-    if (lyricsAsync.isLoading) {
-      return const Center(
-        child: SizedBox(
-          width: 26,
-          height: 26,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.6,
-            color: AppColors.accent,
-          ),
-        ),
-      );
-    }
 
     if (!visualizer) {
       // Modo estándar: fondo = artwork desenfocado + velo oscuro.
@@ -411,6 +428,47 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     );
   }
 
+  Widget _buildRow(
+    _LyricsRow row, {
+    required List<SyncedLine> lines,
+    required Lyrics? lyrics,
+    required LyricsSyncLevel level,
+    required int litIndex,
+    required int anchorIndex,
+    required int positionMs,
+    required bool visualizer,
+    required bool landscape,
+    required Key rowKey,
+  }) {
+    switch (row.kind) {
+      case _RowKind.gap:
+        return LyricsGapDots(
+          key: rowKey,
+          gap: row.gap!,
+          positionMs: positionMs,
+        );
+      case _RowKind.footer:
+        return KeyedSubtree(
+          key: rowKey,
+          child: _footer(lyrics!, level),
+        );
+      case _RowKind.line:
+        final line = lines[row.index];
+        final lit = row.index == litIndex;
+        return LyricsLine(
+          key: rowKey,
+          line: line,
+          lit: lit,
+          distance: lyricsDistance(row.index, anchorIndex, lit: lit),
+          level: level,
+          positionMs: positionMs,
+          visualizer: visualizer,
+          landscape: landscape,
+          onTap: () => _seekToLine(line),
+        );
+    }
+  }
+
   String _plainText(Lyrics? lyrics, List<SyncedLine> lines) {
     final plain = (lyrics?.lyrics ?? '').trim();
     if (plain.isNotEmpty) return plain;
@@ -418,8 +476,39 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
   }
 
   // -------------------------------------------------------------------------
-  // Encabezado / spans
+  // Encabezado / pie / carga
   // -------------------------------------------------------------------------
+
+  Widget _header({required bool synced, required bool landscape}) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        landscape ? 40 : 28,
+        MediaQuery.paddingOf(context).top + 22,
+        landscape ? 40 : 20,
+        26,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.textDisabled,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Text('Letra', style: AppTextStyles.headline),
+          const Spacer(),
+          if (synced) ...[
+            _syncedChip(),
+            const SizedBox(width: 4),
+          ],
+          _modeToggle(),
+        ],
+      ),
+    );
+  }
 
   Widget _syncedChip() {
     return Container(
@@ -472,169 +561,66 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     );
   }
 
-  /// Span de la línea. Con `sync_level: word` y la línea activa, cada
-  /// palabra se colorea según `time_ms + duration_ms` (karaoke por color,
-  /// sin cambiar el tamaño). Si la línea viene sin palabras, manda el color
-  /// de la línea entera.
-  InlineSpan _lineSpan(
-    SyncedLine line, {
-    required bool active,
-    required LyricsSyncLevel level,
-    required int positionMs,
-  }) {
-    if (!active || level != LyricsSyncLevel.word || line.words.isEmpty) {
-      return TextSpan(text: line.text);
-    }
-    return TextSpan(
-      children: [
-        for (var i = 0; i < line.words.length; i++)
-          TextSpan(
-            text: line.words[i].text,
-            style: TextStyle(color: _wordColor(line, i, positionMs)),
-          ),
-      ],
-    );
-  }
-
-  Color _wordColor(SyncedLine line, int index, int positionMs) {
-    final start = line.words[index].timeMs;
-    final end = line.wordEndMs(index);
-    if (positionMs >= start && (end == null || positionMs < end)) {
-      // Palabra que está sonando ahora.
-      return AppColors.accent;
-    }
-    if (end != null && positionMs >= end) {
-      // Ya cantada.
-      return AppColors.textPrimary;
-    }
-    // Falta cantar.
-    return const Color(0x8CFFFFFF);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Líneas
-// ---------------------------------------------------------------------------
-
-/// Línea del modo estándar: color y resplandor cambian con animación, el
-/// tamaño NUNCA (sin zoom).
-class _StandardLine extends StatelessWidget {
-  const _StandardLine({
-    required super.key,
-    required this.span,
-    required this.active,
-    required this.passed,
-    required this.blur,
-    required this.onTap,
-  });
-
-  final InlineSpan span;
-  final bool active;
-  final bool passed;
-  final double blur;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-        margin: EdgeInsets.symmetric(vertical: active ? 7 : 5),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOutCubic,
-            style: TextStyle(
-              color: active
-                  ? AppColors.textPrimary
-                  : (passed ? AppColors.textDisabled : AppColors.textSecondary),
-              fontSize: 22,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              height: 1.34,
-              shadows: active
-                  ? [
-                      Shadow(
-                        blurRadius: 14,
-                        color: AppColors.textPrimary.withValues(alpha: 0.18),
-                      ),
-                      Shadow(
-                        blurRadius: 26,
-                        color: AppColors.accent.withValues(alpha: 0.16),
-                      ),
-                    ]
-                  : null,
+  /// Pie: nivel de sincronía del track y quién lo sirvió.
+  Widget _footer(Lyrics lyrics, LyricsSyncLevel level) {
+    final provider = lyrics.provider ?? 'desconocida';
+    final source = lyrics.source;
+    final label = level == LyricsSyncLevel.word ? 'PALABRA' : 'LÍNEA';
+    final detail = source == null || source.isEmpty
+        ? 'Fuente · $provider'
+        : 'Fuente · $provider · $source';
+    return Padding(
+      padding: const EdgeInsets.only(top: 22, bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
             ),
-            child: Text.rich(span, textAlign: TextAlign.left),
+            child: Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.accent,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.caption,
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-/// Línea del modo visualizer: mismo esquema sin zoom, con resplandor más
-/// marcado y texto centrado en horizontal.
-class _VisualizerLine extends StatelessWidget {
-  const _VisualizerLine({
-    required super.key,
-    required this.span,
-    required this.active,
-    required this.passed,
-    required this.landscape,
-    required this.blur,
-    required this.onTap,
-  });
-
-  final InlineSpan span;
-  final bool active;
-  final bool passed;
-  final bool landscape;
-  final double blur;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.easeOutCubic,
-        margin: EdgeInsets.symmetric(vertical: active ? 9 : 6),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 420),
-            curve: Curves.easeOutCubic,
-            textAlign: landscape ? TextAlign.center : TextAlign.left,
-            style: TextStyle(
-              color: active
-                  ? AppColors.textPrimary
-                  : (passed ? AppColors.textDisabled : AppColors.textSecondary),
-              fontSize: landscape ? 30 : 25,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-              letterSpacing: active ? 0.4 : 0,
-              height: 1.36,
-              shadows: active
-                  ? [
-                      Shadow(
-                        blurRadius: 16,
-                        color: AppColors.textPrimary.withValues(alpha: 0.22),
-                      ),
-                      Shadow(
-                        blurRadius: 30,
-                        color: AppColors.accent.withValues(alpha: 0.28),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Text.rich(span),
-          ),
-        ),
+  /// Esqueleto de carga (am-lyrics): barras shimmer en vez de un spinner.
+  Widget _loadingSkeleton({required bool landscape}) {
+    const widths = [230.0, 168.0, 300.0, 146.0, 264.0, 190.0];
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        landscape ? 48 : 24,
+        24,
+        landscape ? 48 : 24,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final width in widths) ...[
+            ShimmerBox(width: width, height: 20, borderRadius: 6),
+            const SizedBox(height: 18),
+          ],
+        ],
       ),
     );
   }
