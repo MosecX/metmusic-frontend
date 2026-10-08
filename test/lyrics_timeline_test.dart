@@ -185,7 +185,7 @@ void main() {
     });
   });
 
-  group('borde del wipe', () {
+  group('borde del wipe por fila', () {
     final painted = line(
       1000,
       'hola mundo',
@@ -198,21 +198,102 @@ void main() {
     const lefts = [0.0, 60.0];
     const rights = [55.0, 130.0];
 
-    test('arranca en 0 y termina al final de la última palabra', () {
-      expect(lyricsWipeEdge(painted, lefts, rights, 0), 0.0);
-      expect(lyricsWipeEdge(painted, lefts, rights, 1000), 0.0);
-      expect(lyricsWipeEdge(painted, lefts, rights, 5000), 130.0);
+    // Las dos palabras miden en la misma fila (sin wrap).
+    final single = lyricsWipeRows(const [
+      LyricsWipeBox(left: 0, right: 55, top: 10, bottom: 34),
+      LyricsWipeBox(left: 60, right: 130, top: 10, bottom: 34),
+    ]);
+
+    // Misma línea partida en dos filas: palabra 0 arriba, palabra 1 abajo.
+    final wrapped = lyricsWipeRows(const [
+      LyricsWipeBox(left: 0, right: 180, top: 10, bottom: 34),
+      LyricsWipeBox(left: 8, right: 70, top: 46, bottom: 70),
+    ]);
+    const wrapLefts = [0.0, 8.0];
+    const wrapRights = [180.0, 70.0];
+
+    test('agrupa las cajas por fila visual', () {
+      expect(single, hasLength(1));
+      expect(single.first.words, [0, 1]);
+      expect(single.first.left, 0);
+      expect(single.first.right, 130);
+
+      expect(wrapped, hasLength(2));
+      expect(wrapped[0].words, [0]);
+      expect(wrapped[1].words, [1]);
+      expect(wrapped[1].left, 8);
+      expect(wrapped[1].right, 70);
+    });
+
+    test('una sola fila: arranca en 0 y termina al final de la última', () {
+      final row = single.first;
+      expect(lyricsWipeRowEdge(painted, lefts, rights, row, 0), 0.0);
+      expect(lyricsWipeRowEdge(painted, lefts, rights, row, 1000), 0.0);
+      expect(lyricsWipeRowEdge(painted, lefts, rights, row, 5000), 130.0);
     });
 
     test('interpola dentro de la palabra que suena', () {
-      expect(lyricsWipeEdge(painted, lefts, rights, 2000), 27.5);
-      expect(lyricsWipeEdge(painted, lefts, rights, 4000), 95.0);
+      final row = single.first;
+      expect(lyricsWipeRowEdge(painted, lefts, rights, row, 2000), 27.5);
+      expect(lyricsWipeRowEdge(painted, lefts, rights, row, 4000), 95.0);
     });
 
-    test('se queda en el último offset si las listas no calzan', () {
+    test('se acota a la fila si las listas no calzan', () {
       expect(
-        lyricsWipeEdge(painted, const [0.0], const [10.0], 5000),
+        lyricsWipeRowEdge(
+          painted,
+          const [0.0],
+          const [10.0],
+          single.first,
+          5000,
+        ),
         10.0,
+      );
+    });
+
+    test('con wrap, la fila siguiente espera apagada', () {
+      // En pleno canto de la palabra 0: la de arriba barriendo y la de
+      // abajo intacta (con el eje X global del párrafo se encendía sola).
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[0], 2000),
+        90.0,
+      );
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[1], 2000),
+        8.0,
+      );
+    });
+
+    test('la fila terminada queda encendida al pasar a la siguiente', () {
+      // Justo en el corte (3000): la de arriba al 100 %, la de abajo sin
+      // arrancar (con el eje global, la de arriba se apagaba acá).
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[0], 3000),
+        180.0,
+      );
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[1], 3000),
+        8.0,
+      );
+      // Cantando en la fila de abajo: la de arriba sigue intacta.
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[0], 4000),
+        180.0,
+      );
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[1], 4000),
+        39.0,
+      );
+    });
+
+    test('al terminar queda al 100 % dentro de los límites de la fila', () {
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[1], 5000),
+        70.0,
+      );
+      expect(
+        lyricsWipeRowEdge(painted, wrapLefts, wrapRights, wrapped[0], 9999),
+        180.0,
       );
     });
   });

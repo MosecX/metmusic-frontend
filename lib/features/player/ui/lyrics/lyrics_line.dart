@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -103,6 +104,9 @@ class LyricsLine extends StatelessWidget {
     return RepaintBoundary(
       child: GestureDetector(
         onTap: onTap,
+        // Las capas del wipe están recortadas a su fila, así que sin un
+        // hit-test opaco los toques en la parte vacía de la línea se caerían.
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: duration,
           curve: curve,
@@ -156,10 +160,15 @@ class LyricsLine extends StatelessWidget {
   }
 }
 
-/// Karaoke con wipe: dos capas de texto superpuestas con el mismo layout,
-/// la base apagada y la encendida recortada por un degradado que barre la
-/// línea de izquierda a derecha con un borde suave de 0.75 em (am-lyrics
-/// `--am-lyrics-progression-feather`).
+/// Karaoke con wipe: capa base apagada + una capa encendida **por fila
+/// visual** recortada a su rectángulo, más una banda de acento que barre el
+/// borde.
+///
+/// El degradado de cada fila corre dentro del ancho de ESA fila, así una
+/// línea que hace wrap se enciende fila por fila: lo ya cantado queda
+/// encendido y la fila siguiente espera apagada (con un solo eje X para el
+/// párrafo, todas las filas se encenderían juntas y al saltar de una a otra
+/// se apagarían).
 ///
 /// Los offsets de cada palabra se miden con `TextPainter` (con el mismo
 /// ancho y escalado que usa el render) y se cachean por estilo: sólo se
@@ -189,6 +198,8 @@ class _WordWipeTextState extends State<WordWipeText> {
   String _text = '';
   List<double> _lefts = const [];
   List<double> _rights = const [];
+  List<LyricsWipeRow> _rows = const [];
+  List<_RowClipper> _clippers = const [];
 
   void _layout(
     BuildContext context,
@@ -197,37 +208,50 @@ class _WordWipeTextState extends State<WordWipeText> {
   ) {
     final words = widget.line.words;
     _text = words.map((word) => word.text).join();
+    final textScaler = MediaQuery.textScalerOf(context);
     final cacheKey = '$_text|${style.fontSize}|${style.fontWeight}|'
         '${style.letterSpacing}|${style.height}|${style.fontFamily}|'
-        '$maxWidth|${widget.textAlign.name}';
+        '$maxWidth|${widget.textAlign.name}|$textScaler';
     if (cacheKey == _cacheKey) return;
 
     final painter = TextPainter(
       text: TextSpan(text: _text, style: style),
       textDirection: Directionality.of(context),
       textAlign: widget.textAlign,
-      textScaler: MediaQuery.textScalerOf(context),
+      textScaler: textScaler,
     )..layout(minWidth: maxWidth, maxWidth: maxWidth);
 
+    final boxes = <LyricsWipeBox>[];
     final lefts = <double>[];
     final rights = <double>[];
     var start = 0;
     for (final word in words) {
       final end = start + word.text.length;
-      final boxes = painter.getBoxesForSelection(
+      final glyphBoxes = painter.getBoxesForSelection(
         TextSelection(baseOffset: start, extentOffset: end),
       );
-      if (boxes.isEmpty) {
+      if (glyphBoxes.isEmpty) {
+        boxes.add(const LyricsWipeBox(left: 0, right: 0, top: 0, bottom: 0));
         lefts.add(0);
         rights.add(0);
       } else {
-        lefts.add(boxes.first.left);
-        rights.add(boxes.last.right);
+        final first = glyphBoxes.first;
+        final last = glyphBoxes.last;
+        boxes.add(LyricsWipeBox(
+          left: first.left,
+          right: last.right,
+          top: first.top,
+          bottom: first.bottom > last.bottom ? first.bottom : last.bottom,
+        ));
+        lefts.add(first.left);
+        rights.add(last.right);
       }
       start = end;
     }
     _lefts = lefts;
     _rights = rights;
+    _rows = lyricsWipeRows(boxes);
+    _clippers = [for (final row in _rows) _RowClipper(row)];
     _cacheKey = cacheKey;
   }
 
@@ -240,56 +264,162 @@ class _WordWipeTextState extends State<WordWipeText> {
         final rawMax = constraints.maxWidth;
         final maxWidth = rawMax.isFinite ? rawMax : 1200.0;
         _layout(context, maxWidth, style);
-        final edge = lyricsWipeEdge(
-          widget.line,
-          _lefts,
-          _rights,
-          widget.positionMs,
-        );
-        final feather = (style.fontSize ?? 16) * 0.75;
+        final fontSize = style.fontSize ?? 16;
+        final layers = <Widget>[
+          Text.rich(
+            TextSpan(
+              text: _text,
+              style: TextStyle(color: widget.baseColor),
+            ),
+            textAlign: align,
+          ),
+        ];
+        for (var i = 0; i < _rows.length; i++) {
+          final row = _rows[i];
+          final edge = lyricsWipeRowEdge(
+            widget.line,
+            _lefts,
+            _rights,
+            row,
+            widget.positionMs,
+          );
+          final lit = _litRow(row, edge, i, fontSize, align);
+          if (lit != null) layers.add(lit);
+          // La banda de acento sólo tiene sentido mientras barre la fila.
+          if (edge > row.left + 0.5 && edge < row.right - 0.5) {
+            layers.add(_accentBand(row, edge, i, fontSize, align));
+          }
+        }
         return SizedBox(
           width: maxWidth,
-          child: Stack(
-            children: [
-              Text.rich(
-                TextSpan(
-                  text: _text,
-                  style: TextStyle(color: widget.baseColor),
-                ),
-                textAlign: align,
-              ),
-              Positioned.fill(
-                child: ShaderMask(
-                  blendMode: BlendMode.srcIn,
-                  shaderCallback: (rect) {
-                    final width = rect.width <= 0 ? 1.0 : rect.width;
-                    final from = ((edge - feather) / width).clamp(0.0, 1.0);
-                    final to = (edge / width).clamp(0.0, 1.0);
-                    return LinearGradient(
-                      colors: const [
-                        Colors.white,
-                        Colors.white,
-                        Colors.transparent,
-                      ],
-                      stops: [0.0, from, to],
-                    ).createShader(rect);
-                  },
-                  child: Text.rich(
-                    TextSpan(
-                      text: _text,
-                      style: TextStyle(
-                        color: widget.litColor,
-                        shadows: const <Shadow>[],
-                      ),
-                    ),
-                    textAlign: align,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: Stack(children: layers),
         );
       },
     );
   }
+
+  /// Capa encendida de una fila, recortada a su caja y barrida con una
+  /// rampa larga (1.6 em) para que el texto se prenda de a poco.
+  /// `null` si la fila todavía no arrancó.
+  Widget? _litRow(
+    LyricsWipeRow row,
+    double edge,
+    int rowIndex,
+    double fontSize,
+    TextAlign align,
+  ) {
+    if (edge <= row.left + 0.5) return null;
+    final clipper = _clippers[rowIndex];
+    final lit = Text.rich(
+      TextSpan(
+        text: _text,
+        style: TextStyle(color: widget.litColor),
+      ),
+      textAlign: align,
+    );
+    // Fila completa: el degradado sólo agregaría un caso degenerado.
+    if (edge >= row.right - 0.5) {
+      return Positioned.fill(
+        child: ClipRect(clipper: clipper, child: lit),
+      );
+    }
+    final feather = fontSize * 1.6;
+    return Positioned.fill(
+      child: ClipRect(
+        clipper: clipper,
+        child: ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (rect) => _sweepShader(rect, edge, feather),
+          child: lit,
+        ),
+      ),
+    );
+  }
+
+  /// Rampa suave del barrido: alfa 1 hasta `edge - feather` y luego una
+  /// caída en cuatro tramos (55 % / 85 % / 100 %) para evitar el corte
+  /// "en seco" de un degradado lineal de dos paradas.
+  Shader _sweepShader(Rect rect, double edge, double feather) {
+    final width = rect.width <= 0 ? 1.0 : rect.width;
+    final from = ((edge - feather) / width).clamp(0.0, 1.0);
+    final to = (edge / width).clamp(0.0, 1.0);
+    final span = to - from;
+    return LinearGradient(
+      colors: const [
+        Colors.white,
+        Colors.white,
+        Colors.white,
+        Colors.white,
+        Colors.transparent,
+      ],
+      stops: [
+        0.0,
+        from,
+        (from + span * 0.55).clamp(0.0, 1.0),
+        (from + span * 0.85).clamp(0.0, 1.0),
+        to,
+      ],
+    ).createShader(rect);
+  }
+
+  /// Banda de acento que barre el borde (luz que pasa sobre el texto): se
+  /// pinta sólo dentro de la fila y desaparece a los lados.
+  Widget _accentBand(
+    LyricsWipeRow row,
+    double edge,
+    int rowIndex,
+    double fontSize,
+    TextAlign align,
+  ) {
+    return Positioned.fill(
+      child: ClipRect(
+        clipper: _clippers[rowIndex],
+        child: ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (rect) {
+            final width = rect.width <= 0 ? 1.0 : rect.width;
+            final band = fontSize * 1.1;
+            final before = ((edge - band) / width).clamp(0.0, 1.0);
+            final peak = (edge / width).clamp(0.0, 1.0);
+            final after = ((edge + band * 0.4) / width).clamp(0.0, 1.0);
+            return LinearGradient(
+              colors: [
+                Colors.transparent,
+                Colors.white.withValues(alpha: 0.85),
+                Colors.transparent,
+              ],
+              stops: [before, max(before, min(after, peak)), after],
+            ).createShader(rect);
+          },
+          child: Text.rich(
+            TextSpan(
+              text: _text,
+              style: const TextStyle(
+                color: AppColors.accent,
+                shadows: <Shadow>[],
+              ),
+            ),
+            textAlign: align,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Recorta a la caja de una fila visual: sin esto, el gradiente de una fila
+/// se pintaría encima de las otras.
+class _RowClipper extends CustomClipper<Rect> {
+  const _RowClipper(this.row);
+
+  final LyricsWipeRow row;
+
+  Rect get _rect => Rect.fromLTRB(row.left, row.top, row.right, row.bottom);
+
+  @override
+  Rect getClip(Size size) => _rect.intersect(Offset.zero & size);
+
+  @override
+  bool shouldReclip(covariant _RowClipper oldClipper) =>
+      oldClipper.row != row;
 }

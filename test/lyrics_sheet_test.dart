@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metmusic/core/models/lyrics.dart';
+import 'package:metmusic/core/theme/app_colors.dart';
 import 'package:metmusic/core/utils/lyrics_timeline.dart';
 import 'package:metmusic/features/player/ui/lyrics/lyrics_gap.dart';
 import 'package:metmusic/features/player/ui/lyrics/lyrics_line.dart';
 
 /// Contrato de render de la hoja de letras: escalera de distancia, karaoke
-/// por wipe (dos capas + ShaderMask) con su guarda de reflow, y los puntos
-/// de los huecos instrumentales.
+/// por wipe (capa base + capa encendida por fila + banda de acento) con su
+/// guarda de reflow, y los puntos de los huecos instrumentales.
 void main() {
   SyncedLine line({bool brokenWords = false}) {
     return SyncedLine(
@@ -119,11 +120,14 @@ void main() {
   });
 
   group('karaoke por wipe', () {
-    testWidgets('la línea encendida con sync word arma dos capas + máscara',
+    testWidgets(
+        'la línea encendida con sync word arma base + encendida + banda',
         (tester) async {
       await pumpLine(tester, lit: true, distance: 0);
       expect(find.byType(WordWipeText), findsOneWidget);
-      expect(find.byType(ShaderMask), findsOneWidget);
+      // Una máscara por la fila encendida (barrido) y otra por la banda de
+      // acento que barre el borde.
+      expect(find.byType(ShaderMask), findsNWidgets(2));
 
       final texts = tester
           .widgetList<Text>(
@@ -133,10 +137,11 @@ void main() {
             ),
           )
           .toList();
-      expect(texts, hasLength(2));
-      // Capa base apagada, capa encendida en blanco puro.
+      expect(texts, hasLength(3));
+      // Capa base apagada, capa encendida en blanco puro y banda de acento.
       expect(texts[0].textSpan!.style!.color!.a, closeTo(0.55, 0.001));
       expect(texts[1].textSpan!.style!.color, Colors.white);
+      expect(texts[2].textSpan!.style!.color, AppColors.accent);
     });
 
     testWidgets('sin nivel word va a texto plano (un solo Text)', (

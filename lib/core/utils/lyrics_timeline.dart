@@ -105,22 +105,97 @@ bool lyricsWordsMatchLine(SyncedLine line) {
   return line.words.map((w) => w.text).join() == line.text;
 }
 
-/// Posición en px del borde del wipe karaoke dentro de una línea.
+/// Caja de una palabra medida con `TextPainter`: una por palabra, con las
+/// coordenadas del propio painter (una palabra que se parte en dos filas
+/// queda asociada a su primera caja y el borde se acota a la fila).
+class LyricsWipeBox {
+  const LyricsWipeBox({
+    required this.left,
+    required this.right,
+    required this.top,
+    required this.bottom,
+  });
+
+  final double left;
+  final double right;
+  final double top;
+  final double bottom;
+}
+
+/// Una fila visual del párrafo: las palabras que comparten línea al hacer
+/// wrap, con sus límites y los índices de palabra que la componen.
 ///
-/// [lefts] y [rights] son los offsets de cada palabra medidos con
-/// `TextPainter`. El borde queda al final de la última palabra cantada, al
-/// progreso de la que está sonando o al inicio de la primera que falta; si
-/// no hay palabras que cantar todavía, en 0.
-double lyricsWipeEdge(
+/// El wipe se resuelve fila por fila; si no, el único eje X del párrafo
+/// encendería todas las filas a la vez y al saltar de una a otra apagaría
+/// las anteriores.
+class LyricsWipeRow {
+  const LyricsWipeRow({
+    required this.top,
+    required this.bottom,
+    required this.left,
+    required this.right,
+    required this.words,
+  });
+
+  final double top;
+  final double bottom;
+  final double left;
+  final double right;
+
+  /// Índices de palabra (en orden de aparición) que caen en esta fila.
+  final List<int> words;
+}
+
+/// Agrupa las cajas [boxes] (una por palabra) en filas visuales, por
+/// proximidad de `top` con tolerancia de 0.5 px para absorber redondeos de
+/// subpixel. Devuelve las filas en orden de aparición.
+List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
+  final rows = <LyricsWipeRow>[];
+  for (var i = 0; i < boxes.length; i++) {
+    final box = boxes[i];
+    final rowIndex =
+        rows.indexWhere((row) => (row.top - box.top).abs() <= 0.5);
+    if (rowIndex < 0) {
+      rows.add(LyricsWipeRow(
+        top: box.top,
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+        words: [i],
+      ));
+      continue;
+    }
+    final row = rows[rowIndex];
+    rows[rowIndex] = LyricsWipeRow(
+      top: min(row.top, box.top),
+      bottom: max(row.bottom, box.bottom),
+      left: min(row.left, box.left),
+      right: max(row.right, box.right),
+      words: [...row.words, i],
+    );
+  }
+  return rows;
+}
+
+/// Borde del wipe karaoke **dentro de** [row], en el mismo espacio de
+/// coordenadas que el `TextPainter` (0,0 = origen del párrafo).
+///
+/// Recorre sólo los índices de `row.words`: la fila terminada queda al
+/// 100 % (`row.right`) y la que todavía no arrancó, apagada en `row.left`.
+/// El resultado siempre se acota a los límites de la fila, así una palabra
+/// que se parte en dos líneas no arrastra el borde a la otra fila.
+double lyricsWipeRowEdge(
   SyncedLine line,
   List<double> lefts,
   List<double> rights,
+  LyricsWipeRow row,
   int positionMs,
 ) {
   final words = line.words;
-  final count = min(words.length, min(lefts.length, rights.length));
-  var edge = 0.0;
-  for (var i = 0; i < count; i++) {
+  final limit = min(lefts.length, rights.length);
+  var edge = row.left;
+  for (final i in row.words) {
+    if (i >= words.length || i >= limit) break;
     final start = words[i].timeMs;
     final end = line.wordEndMs(i) ?? line.endMs ?? start + 900;
     if (positionMs >= end) {
@@ -135,6 +210,8 @@ double lyricsWipeEdge(
         (rights[i] - lefts[i]) * lyricsProgress(start, end, positionMs);
     break;
   }
+  if (edge < row.left) return row.left;
+  if (edge > row.right) return row.right;
   return edge;
 }
 
