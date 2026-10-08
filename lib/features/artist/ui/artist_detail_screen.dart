@@ -16,6 +16,7 @@ import '../../../core/widgets/track_row.dart';
 import '../../../navigation/main_shell.dart';
 import '../../../navigation/routes.dart';
 import '../../player/providers/playback_actions.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../providers/artist_provider.dart';
 
 /// Detalle de artista (`GET /api/artists/{artistId}`).
@@ -177,6 +178,8 @@ class _Content extends ConsumerWidget {
                               context: topTracks,
                               index: i,
                             ),
+                            onLongPress: () =>
+                                openTrackContextMenu(context, ref, topTracks[i]),
                           ),
                       ],
                     ),

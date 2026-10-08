@@ -18,6 +18,7 @@ import '../../../core/widgets/track_row.dart';
 import '../../../navigation/routes.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../models/library_models.dart';
 import '../providers/library_provider.dart';
 
@@ -395,6 +396,8 @@ class _FavoritesTab extends ConsumerWidget {
                           context: tracks,
                           index: i,
                         ),
+                        onLongPress: () =>
+                            openTrackContextMenu(context, ref, tracks[i]),
                         trailing: IconButton(
                           tooltip: 'Quitar de favoritos',
                           visualDensity: VisualDensity.compact,

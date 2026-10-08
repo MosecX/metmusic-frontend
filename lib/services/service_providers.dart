@@ -10,6 +10,7 @@ import 'api/explore_service.dart';
 import 'api/health_service.dart';
 import 'api/lyrics_service.dart';
 import 'api/playlist_service.dart';
+import 'api/radio_service.dart';
 import 'api/search_service.dart';
 import 'api/stream_service.dart';
 import 'api/track_service.dart';
@@ -112,6 +113,10 @@ final lyricsServiceProvider = Provider<LyricsService>(
 
 final canvasServiceProvider = Provider<CanvasService>(
   (ref) => CanvasService(ref.watch(apiClientProvider)),
+);
+
+final radioServiceProvider = Provider<RadioService>(
+  (ref) => RadioService(ref.watch(apiClientProvider)),
 );
 
 /// Indica si el backend está alcanzable (para degradar a datos locales).

@@ -16,6 +16,7 @@ import '../../../navigation/main_shell.dart';
 import '../../library/providers/library_provider.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../providers/playlist_provider.dart';
 
 /// Detalle de playlist (editorial o del usuario).
@@ -271,6 +272,7 @@ class _PlaylistTrackRow extends ConsumerWidget {
       isActive: isActive,
       isPlaying: state.playing,
       onTap: () => ref.playTrack(track, context: queue, index: index - 1),
+      onLongPress: () => openTrackContextMenu(context, ref, track),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

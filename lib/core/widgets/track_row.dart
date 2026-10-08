@@ -17,6 +17,7 @@ class TrackRow extends StatelessWidget {
     this.isPlaying = false,
     this.onTap,
     this.onPlayTap,
+    this.onLongPress,
     this.trailing,
     this.showAlbum = false,
     this.showArtwork = true,
@@ -31,6 +32,9 @@ class TrackRow extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback? onTap;
   final VoidCallback? onPlayTap;
+
+  /// Abre el menú de contexto de la pista (long-press).
+  final VoidCallback? onLongPress;
   final Widget? trailing;
   final bool showAlbum;
   final bool showArtwork;
@@ -41,6 +45,7 @@ class TrackRow extends StatelessWidget {
     final accent = isActive ? AppColors.accent : AppColors.textPrimary;
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: padding,

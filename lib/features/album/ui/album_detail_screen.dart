@@ -15,6 +15,7 @@ import '../../../core/widgets/track_row.dart';
 import '../../../navigation/main_shell.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../providers/album_provider.dart';
 
 /// Detalle de álbum (`GET /api/albums/{albumId}`).
@@ -185,6 +186,7 @@ class _AlbumTrackRow extends ConsumerWidget {
       isActive: isActive,
       isPlaying: state.playing,
       onTap: () => ref.playTrack(track, context: context_, index: index - 1),
+      onLongPress: () => openTrackContextMenu(context, ref, track),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

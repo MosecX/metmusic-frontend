@@ -22,6 +22,7 @@ import '../../../core/widgets/track_row.dart';
 import '../../../navigation/routes.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../models/search_models.dart';
 import '../providers/search_provider.dart';
 
@@ -363,6 +364,8 @@ class _TrackList extends ConsumerWidget {
                     ref.playTrack(tracks[i], context: tracks, index: i),
                 onPlayTap: () =>
                     ref.playTrack(tracks[i], context: tracks, index: i),
+                onLongPress: () =>
+                    openTrackContextMenu(context, ref, tracks[i]),
               ),
           ],
         ),

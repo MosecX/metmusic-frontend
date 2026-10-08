@@ -25,6 +25,7 @@ import '../../../navigation/routes.dart';
 import '../../../services/api/explore_service.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/ui/track_context_menu.dart';
 import '../providers/home_provider.dart';
 
 /// Pantalla principal con secciones de exploración.
@@ -298,6 +299,8 @@ class _RecentSection extends ConsumerWidget {
                         ref.playTrack(tracks[i], context: tracks, index: i),
                     onPlayTap: () =>
                         ref.playTrack(tracks[i], context: tracks, index: i),
+                    onLongPress: () =>
+                        openTrackContextMenu(context, ref, tracks[i]),
                   ),
               ],
             ),
@@ -411,6 +414,8 @@ class _TrackListCard extends ConsumerWidget {
                 onTap: () => ref.playTrack(tracks[i], context: tracks, index: i),
                 onPlayTap: () =>
                     ref.playTrack(tracks[i], context: tracks, index: i),
+                onLongPress: () =>
+                    openTrackContextMenu(context, ref, tracks[i]),
               ),
           ],
         ),

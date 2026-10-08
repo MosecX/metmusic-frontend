@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/glass_player_card.dart';
 import '../providers/player_provider.dart';
 import '../providers/queue_provider.dart';
+import 'track_context_menu.dart';
 
 /// Bottom sheet de la cola de reproducción (estilo Glass 1).
 class QueueSheet extends ConsumerWidget {
@@ -108,6 +109,8 @@ class QueueSheet extends ConsumerWidget {
                                   ref.read(queueProvider.notifier).jumpTo(index),
                               onRemove: () =>
                                   ref.read(queueProvider.notifier).removeAt(index),
+                              onLongPress: () =>
+                                  openTrackContextMenu(context, ref, track),
                             );
                           },
                         ),
@@ -147,6 +150,7 @@ class _QueueTile extends StatelessWidget {
     required this.isPlaying,
     required this.onTap,
     required this.onRemove,
+    this.onLongPress,
   });
 
   final int index;
@@ -158,6 +162,9 @@ class _QueueTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
+  /// Abre el menú de contexto de la pista (long-press).
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     final color = isActive ? AppColors.accent : AppColors.textPrimary;
@@ -165,6 +172,7 @@ class _QueueTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),

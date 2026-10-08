@@ -16,6 +16,7 @@ class ApiEndpoints {
   static String playlist(String playlistUuid) => '$prefix/playlists/$playlistUuid';
   static String lyrics(String trackId) => '$prefix/lyrics/$trackId';
   static String canvas(String trackId) => '$prefix/canvas/$trackId';
+  static String radio(String trackId) => '$prefix/tracks/$trackId/radio';
 
   // --- Explore / Home ---
   static const String exploreHome = '$prefix/explore/home';
