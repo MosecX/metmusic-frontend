@@ -77,12 +77,12 @@ void main() {
       expect(opacity.duration, const Duration(milliseconds: 300));
     });
 
-    testWidgets('las inactivas bajan a 0.8 / 0.46 y escala 0.98',
+    testWidgets('las inactivas bajan a 0.72 / 0.38 y escala 0.98',
         (tester) async {
       await pumpLine(tester, distance: 1);
       expect(
         tester.widget<AnimatedOpacity>(lineChild(AnimatedOpacity)).opacity,
-        0.8,
+        0.72,
       );
       expect(
         tester.widget<AnimatedScale>(lineChild(AnimatedScale)).scale,
@@ -92,8 +92,24 @@ void main() {
       await pumpLine(tester, distance: 4);
       expect(
         tester.widget<AnimatedOpacity>(lineChild(AnimatedOpacity)).opacity,
-        0.46,
+        0.38,
       );
+    });
+
+    testWidgets('la que se apaga decae más lento que la que se enciende', (
+      tester,
+    ) async {
+      await pumpLine(tester, lit: true, distance: 0);
+      final lit = tester.widget<AnimatedDefaultTextStyle>(
+        lineChild(AnimatedDefaultTextStyle),
+      );
+      expect(lit.duration, const Duration(milliseconds: 300));
+
+      await pumpLine(tester, lit: false, distance: 1);
+      final unlit = tester.widget<AnimatedDefaultTextStyle>(
+        lineChild(AnimatedDefaultTextStyle),
+      );
+      expect(unlit.duration, const Duration(milliseconds: 450));
     });
 
     testWidgets('el modo visualizer usa transiciones más lentas y cuerpo 25',
@@ -138,8 +154,9 @@ void main() {
           )
           .toList();
       expect(texts, hasLength(3));
-      // Capa base apagada, capa encendida en blanco puro y banda de acento.
-      expect(texts[0].textSpan!.style!.color!.a, closeTo(0.55, 0.001));
+      // Capa base apagada (0.42, contraste marcado contra el blanco puro),
+      // capa encendida en blanco puro y banda de acento.
+      expect(texts[0].textSpan!.style!.color!.a, closeTo(0.42, 0.001));
       expect(texts[1].textSpan!.style!.color, Colors.white);
       expect(texts[2].textSpan!.style!.color, AppColors.accent);
     });

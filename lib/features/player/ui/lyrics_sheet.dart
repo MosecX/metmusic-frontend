@@ -62,10 +62,10 @@ class _LyricsRow {
 /// actual; `none` → texto plano con scroll manual.
 ///
 /// El comportamiento sigue a am-lyrics: escalera de opacidad/escala por
-/// distancia (0.8 → 0.46 y 0.98), scroll predictivo 350-500 ms antes del
-/// próximo verso anclado al 18 % del viewport, y puntos respirando en los
-/// huecos instrumentales de 7 s o más. El tamaño de caja de cada línea
-/// nunca cambia: no hay zoom ni reflow.
+/// distancia (0.72 → 0.38 y 0.98, con base apagada en 0.42), scroll
+/// predictivo 350-500 ms antes del próximo verso anclado al 18 % del
+/// viewport, y puntos respirando en los huecos instrumentales de 7 s o más.
+/// El tamaño de caja de cada línea nunca cambia: no hay zoom ni reflow.
 class LyricsSheet extends ConsumerStatefulWidget {
   const LyricsSheet({super.key});
 

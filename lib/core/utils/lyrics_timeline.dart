@@ -2,16 +2,18 @@ import 'dart:math';
 
 import '../models/lyrics.dart';
 
-/// Opacidad de una línea según su distancia a la línea activa
-/// (am-lyrics: `1 / .8 / .7 / .58 / .46`). La distinción entre lo ya
-/// cantado y lo que falta no se resuelve con el color de la línea sino con
-/// el wipe por palabra, así que acá sólo manda la distancia.
+/// Opacidad de una línea según su distancia a la línea activa. La
+/// distinción entre lo ya cantado y lo que falta no se resuelve con el
+/// color de la línea sino con el wipe por palabra, así que acá sólo manda
+/// la distancia. Escalera más pronunciada que la de am-lyrics
+/// (`1 / .72 / .58 / .47 / .38`) para que la línea encendida se separe
+/// con claridad de las vecinas.
 double lyricsOpacity(int distance) {
   if (distance <= 0) return 1;
-  if (distance == 1) return 0.8;
-  if (distance == 2) return 0.7;
-  if (distance == 3) return 0.58;
-  return 0.46;
+  if (distance == 1) return 0.72;
+  if (distance == 2) return 0.58;
+  if (distance == 3) return 0.47;
+  return 0.38;
 }
 
 /// Escala de una línea por distancia (am-lyrics: `scale(.98)` en las
@@ -105,16 +107,20 @@ bool lyricsWordsMatchLine(SyncedLine line) {
   return line.words.map((w) => w.text).join() == line.text;
 }
 
-/// Caja de una palabra medida con `TextPainter`: una por palabra, con las
-/// coordenadas del propio painter (una palabra que se parte en dos filas
-/// queda asociada a su primera caja y el borde se acota a la fila).
+/// Un fragmento de una palabra en la caja medida por `TextPainter`: una
+/// palabra que se parte en dos filas al hacer wrap produce dos fragmentos
+/// (uno por fila), cada uno con sus propios límites en esa fila.
 class LyricsWipeBox {
   const LyricsWipeBox({
+    required this.word,
     required this.left,
     required this.right,
     required this.top,
     required this.bottom,
   });
+
+  /// Índice de la palabra a la que pertenece este fragmento.
+  final int word;
 
   final double left;
   final double right;
@@ -122,8 +128,8 @@ class LyricsWipeBox {
   final double bottom;
 }
 
-/// Una fila visual del párrafo: las palabras que comparten línea al hacer
-/// wrap, con sus límites y los índices de palabra que la componen.
+/// Una fila visual del párrafo: los fragmentos de las palabras que comparten
+/// línea al hacer wrap, con sus límites.
 ///
 /// El wipe se resuelve fila por fila; si no, el único eje X del párrafo
 /// encendería todas las filas a la vez y al saltar de una a otra apagaría
@@ -134,7 +140,7 @@ class LyricsWipeRow {
     required this.bottom,
     required this.left,
     required this.right,
-    required this.words,
+    required this.fragments,
   });
 
   final double top;
@@ -142,17 +148,24 @@ class LyricsWipeRow {
   final double left;
   final double right;
 
-  /// Índices de palabra (en orden de aparición) que caen en esta fila.
-  final List<int> words;
+  /// Fragmentos en orden de aparición (de palabra y, dentro de ella, de
+  /// fila).
+  final List<LyricsWipeBox> fragments;
+
+  /// Índices de palabra de la fila, sin repetir y en orden.
+  List<int> get words {
+    final seen = <int>{};
+    return [for (final box in fragments) if (seen.add(box.word)) box.word];
+  }
 }
 
-/// Agrupa las cajas [boxes] (una por palabra) en filas visuales, por
-/// proximidad de `top` con tolerancia de 0.5 px para absorber redondeos de
-/// subpixel. Devuelve las filas en orden de aparición.
+/// Agrupa los fragmentos [boxes] (uno por caja de `getBoxesForSelection`)
+/// en filas visuales, por proximidad de `top` con tolerancia de 0.5 px para
+/// absorber redondeos de subpixel. Devuelve las filas en orden de
+/// aparición.
 List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
   final rows = <LyricsWipeRow>[];
-  for (var i = 0; i < boxes.length; i++) {
-    final box = boxes[i];
+  for (final box in boxes) {
     final rowIndex =
         rows.indexWhere((row) => (row.top - box.top).abs() <= 0.5);
     if (rowIndex < 0) {
@@ -161,7 +174,7 @@ List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
         bottom: box.bottom,
         left: box.left,
         right: box.right,
-        words: [i],
+        fragments: [box],
       ));
       continue;
     }
@@ -171,7 +184,7 @@ List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
       bottom: max(row.bottom, box.bottom),
       left: min(row.left, box.left),
       right: max(row.right, box.right),
-      words: [...row.words, i],
+      fragments: [...row.fragments, box],
     );
   }
   return rows;
@@ -180,34 +193,39 @@ List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
 /// Borde del wipe karaoke **dentro de** [row], en el mismo espacio de
 /// coordenadas que el `TextPainter` (0,0 = origen del párrafo).
 ///
-/// Recorre sólo los índices de `row.words`: la fila terminada queda al
+/// Recorre los fragmentos de la fila en orden: la fila terminada queda al
 /// 100 % (`row.right`) y la que todavía no arrancó, apagada en `row.left`.
-/// El resultado siempre se acota a los límites de la fila, así una palabra
-/// que se parte en dos líneas no arrastra el borde a la otra fila.
-double lyricsWipeRowEdge(
-  SyncedLine line,
-  List<double> lefts,
-  List<double> rights,
-  LyricsWipeRow row,
-  int positionMs,
-) {
-  final words = line.words;
-  final limit = min(lefts.length, rights.length);
+/// Los fragmentos de una palabra partida por el wrap se barren en paralelo
+/// (cada uno dentro de su fila), así que el borde nunca retrocede y la
+/// fila de arriba termina de encenderse al cantarse la palabra.
+double lyricsWipeRowEdge(SyncedLine line, LyricsWipeRow row, int positionMs) {
+  final fragments = row.fragments;
   var edge = row.left;
-  for (final i in row.words) {
-    if (i >= words.length || i >= limit) break;
-    final start = words[i].timeMs;
-    final end = line.wordEndMs(i) ?? line.endMs ?? start + 900;
+  var i = 0;
+  while (i < fragments.length) {
+    final wordIndex = fragments[i].word;
+    // Span de la palabra en ESTA fila (un wrap puede partirlo en dos).
+    var left = fragments[i].left;
+    var right = fragments[i].right;
+    var j = i + 1;
+    while (j < fragments.length && fragments[j].word == wordIndex) {
+      left = min(left, fragments[j].left);
+      right = max(right, fragments[j].right);
+      j++;
+    }
+    if (wordIndex >= line.words.length) break;
+    final start = line.words[wordIndex].timeMs;
+    final end = line.wordEndMs(wordIndex) ?? line.endMs ?? start + 900;
     if (positionMs >= end) {
-      edge = rights[i];
+      edge = right;
+      i = j;
       continue;
     }
     if (positionMs <= start) {
-      edge = lefts[i];
+      edge = left;
       break;
     }
-    edge = lefts[i] +
-        (rights[i] - lefts[i]) * lyricsProgress(start, end, positionMs);
+    edge = left + (right - left) * lyricsProgress(start, end, positionMs);
     break;
   }
   if (edge < row.left) return row.left;

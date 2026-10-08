@@ -18,9 +18,10 @@ double _lineBlur(int distance, {double intensity = 1.0}) {
 /// Línea de letra de la hoja, en cualquiera de los dos modos.
 ///
 /// Sigue la escalera de am-lyrics: la activa va a escala 1.0 / w700 / a
-/// plena opacidad y las demás bajan de a pasos (opacidad 0.8 → 0.46, escala
-/// 0.98, blur por distancia). El cuerpo de la caja NUNCA cambia, así que no
-/// hay reflow ni saltos en el auto-scroll.
+/// plena opacidad y las demás bajan de a pasos (opacidad 0.72 → 0.38,
+/// escala 0.98, blur por distancia) sobre una base apagada (0.42) que deja
+/// a lo encendido con contraste claro. El cuerpo de la caja NUNCA cambia,
+/// así que no hay reflow ni saltos en el auto-scroll.
 class LyricsLine extends StatelessWidget {
   const LyricsLine({
     super.key,
@@ -55,10 +56,14 @@ class LyricsLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = Duration(milliseconds: visualizer ? 420 : 300);
+    // La línea que se apaga decae más lento que la que se enciende: el
+    // relevo entre versos se lee como un pase de testigo, no como dos
+    // cambios simultáneos compitiendo.
+    final fadeOut = Duration(milliseconds: visualizer ? 570 : 450);
     final curve = visualizer ? Curves.easeOutCubic : Curves.easeInOutCubic;
     final align =
         visualizer && landscape ? TextAlign.center : TextAlign.left;
-    final dimColor = AppColors.textPrimary.withValues(alpha: 0.55);
+    final dimColor = AppColors.textPrimary.withValues(alpha: 0.42);
 
     final style = TextStyle(
       color: lit ? AppColors.textPrimary : dimColor,
@@ -72,7 +77,7 @@ class LyricsLine extends StatelessWidget {
     );
 
     Widget child = AnimatedDefaultTextStyle(
-      duration: duration,
+      duration: lit ? duration : fadeOut,
       curve: curve,
       style: style,
       child: _body(dimColor, align),
@@ -139,23 +144,24 @@ class LyricsLine extends StatelessWidget {
     );
   }
 
-  /// Resplandor de la línea encendida (se conserva el del modo anterior).
+  /// Resplandor de la línea encendida (se conserva del modo anterior, con
+  /// más cuerpo para marcar lo que está sonando).
   List<Shadow> _glow() {
     if (visualizer) {
       return [
         Shadow(
           blurRadius: 16,
-          color: AppColors.textPrimary.withValues(alpha: 0.22),
+          color: AppColors.textPrimary.withValues(alpha: 0.28),
         ),
-        Shadow(blurRadius: 30, color: AppColors.accent.withValues(alpha: 0.28)),
+        Shadow(blurRadius: 30, color: AppColors.accent.withValues(alpha: 0.34)),
       ];
     }
     return [
       Shadow(
         blurRadius: 14,
-        color: AppColors.textPrimary.withValues(alpha: 0.18),
+        color: AppColors.textPrimary.withValues(alpha: 0.24),
       ),
-      Shadow(blurRadius: 26, color: AppColors.accent.withValues(alpha: 0.16)),
+      Shadow(blurRadius: 26, color: AppColors.accent.withValues(alpha: 0.22)),
     ];
   }
 }
@@ -203,8 +209,6 @@ class _WordWipeTextState extends State<WordWipeText>
     with SingleTickerProviderStateMixin {
   String? _cacheKey;
   String _text = '';
-  List<double> _lefts = const [];
-  List<double> _rights = const [];
   List<LyricsWipeRow> _rows = const [];
   List<_RowClipper> _clippers = const [];
 
@@ -279,34 +283,38 @@ class _WordWipeTextState extends State<WordWipeText>
     )..layout(minWidth: maxWidth, maxWidth: maxWidth);
 
     final boxes = <LyricsWipeBox>[];
-    final lefts = <double>[];
-    final rights = <double>[];
     var start = 0;
-    for (final word in words) {
+    for (var i = 0; i < words.length; i++) {
+      final word = words[i];
       final end = start + word.text.length;
       final glyphBoxes = painter.getBoxesForSelection(
         TextSelection(baseOffset: start, extentOffset: end),
       );
       if (glyphBoxes.isEmpty) {
-        boxes.add(const LyricsWipeBox(left: 0, right: 0, top: 0, bottom: 0));
-        lefts.add(0);
-        rights.add(0);
-      } else {
-        final first = glyphBoxes.first;
-        final last = glyphBoxes.last;
         boxes.add(LyricsWipeBox(
-          left: first.left,
-          right: last.right,
-          top: first.top,
-          bottom: first.bottom > last.bottom ? first.bottom : last.bottom,
+          word: i,
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
         ));
-        lefts.add(first.left);
-        rights.add(last.right);
+        continue;
+      }
+      // Una caja por fragmento: la palabra que cruza el wrap deja un
+      // fragmento por fila con los límites de ESA fila (medir con
+      // first.left..last.right hacía retroceder el borde y dejaba la fila
+      // de arriba sin terminar de encenderse).
+      for (final glyphBox in glyphBoxes) {
+        boxes.add(LyricsWipeBox(
+          word: i,
+          left: glyphBox.left,
+          right: glyphBox.right,
+          top: glyphBox.top,
+          bottom: glyphBox.bottom,
+        ));
       }
       start = end;
     }
-    _lefts = lefts;
-    _rights = rights;
     _rows = lyricsWipeRows(boxes);
     _clippers = [for (final row in _rows) _RowClipper(row)];
     _cacheKey = cacheKey;
@@ -341,13 +349,7 @@ class _WordWipeTextState extends State<WordWipeText>
               ];
               for (var i = 0; i < _rows.length; i++) {
                 final row = _rows[i];
-                final edge = lyricsWipeRowEdge(
-                  widget.line,
-                  _lefts,
-                  _rights,
-                  row,
-                  positionMs,
-                );
+                final edge = lyricsWipeRowEdge(widget.line, row, positionMs);
                 final lit = _litRow(row, edge, i, fontSize, align);
                 if (lit != null) layers.add(lit);
                 // La banda de acento sólo tiene sentido mientras barre la

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:metmusic/core/models/track.dart';
+import 'package:metmusic/core/models/track_details.dart';
 import 'package:metmusic/features/player/providers/radio_provider.dart';
 import 'package:metmusic/features/player/ui/track_context_menu.dart';
 
@@ -27,12 +28,13 @@ void main() {
     artistId: '14885395',
   );
 
-  /// Monta el botón que abre [openTrackContextMenu] como hoja modal y
-  /// completa [closed] con la acción elegida.
+  /// Monta el botón que abre el menú como hoja modal y completa [closed]
+  /// con la acción elegida.
   Future<void> pumpMenuHost(
     WidgetTester tester,
     Completer<TrackAction?> closed, {
     Track forTrack = track,
+    List<TrackAction> actions = const [TrackAction.radio],
   }) {
     return tester.pumpWidget(
       MaterialApp(
@@ -46,7 +48,7 @@ void main() {
                     backgroundColor: Colors.transparent,
                     builder: (_) => TrackContextMenu(
                       track: forTrack,
-                      actions: const [TrackAction.radio],
+                      actions: actions,
                     ),
                   );
                   if (!closed.isCompleted) closed.complete(action);
@@ -179,5 +181,74 @@ void main() {
     expect(find.byType(TrackContextMenu), findsOneWidget);
     expect(find.byIcon(LucideIcons.radio), findsNothing);
     expect(find.byIcon(LucideIcons.info), findsOneWidget);
+  });
+
+  group('en pantalla chica', () {
+    // La hoja modal sin isScrollControlled se limita a 9/16 de la
+    // pantalla: en 700x360 la columna desbordaba y el ClipRRect se comía
+    // el último ítem (Metadatos) sin forma de alcanzarlo.
+    void shrinkScreen(WidgetTester tester) {
+      tester.view.physicalSize = const Size(700, 360);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+    }
+
+    testWidgets('el menú scrollea y alcanza los metadatos', (tester) async {
+      shrinkScreen(tester);
+      final closed = Completer<TrackAction?>();
+      await pumpMenuHost(
+        tester,
+        closed,
+        actions: const [TrackAction.radio, TrackAction.metadata],
+      );
+
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrackContextMenu), findsOneWidget);
+      expect(find.byType(ListView), findsOneWidget);
+
+      await tester.dragUntilVisible(
+        find.text('Metadatos'),
+        find.byType(ListView),
+        const Offset(0, -60),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Metadatos').hitTestable(), findsOneWidget);
+
+      await tester.tap(find.text('Metadatos'));
+      await tester.pumpAndSettle();
+      expect(await closed.future, TrackAction.metadata);
+    });
+
+    testWidgets('la hoja de detalles scrollea hasta el ID de pista', (
+      tester,
+    ) async {
+      shrinkScreen(tester);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: TrackDetailsSheet(
+              details: TrackDetails(
+                trackId: '424096050',
+                title: 'One More Time',
+                artist: 'Daft Punk',
+                durationSeconds: 320,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(ListView), findsOneWidget);
+      await tester.dragUntilVisible(
+        find.text('ID de pista'),
+        find.byType(ListView),
+        const Offset(0, -80),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('ID de pista').hitTestable(), findsOneWidget);
+      expect(find.text('424096050').hitTestable(), findsOneWidget);
+    });
   });
 }
