@@ -9,6 +9,7 @@ import '../features/artist/ui/artist_detail_screen.dart';
 import '../features/home/ui/home_screen.dart';
 import '../features/library/ui/library_screen.dart';
 import '../features/player/ui/full_player_screen.dart';
+import '../features/player/ui/mix_screen.dart';
 import '../features/playlist/ui/playlist_detail_screen.dart';
 import '../features/search/ui/search_screen.dart';
 import '../features/settings/ui/settings_screen.dart';
@@ -64,6 +65,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => PlaylistDetailScreen(
           playlistId: state.pathParameters['playlistId'] ?? '',
         ),
+      ),
+      GoRoute(
+        path: Routes.mix,
+        name: Routes.mixName,
+        builder: (_, state) =>
+            MixScreen(trackId: state.pathParameters['trackId'] ?? ''),
       ),
       GoRoute(
         path: Routes.userPlaylist,

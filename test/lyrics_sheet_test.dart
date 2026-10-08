@@ -144,6 +144,24 @@ void main() {
       expect(texts[2].textSpan!.style!.color, AppColors.accent);
     });
 
+    testWidgets(
+        'interpola entre ticks y corta en seeks sin romper el wipe',
+        (tester) async {
+      await pumpLine(tester, lit: true, distance: 0, positionMs: 1500);
+      expect(find.byType(ShaderMask), findsNWidgets(2));
+
+      // Tick normal: arranca la interpolación a 60 fps (el stream de
+      // posición llega cada ~200 ms).
+      await pumpLine(tester, lit: true, distance: 0, positionMs: 1700);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(ShaderMask), findsNWidgets(2));
+
+      // Seek: corta sin barre y sigue renderizando las dos máscaras.
+      await pumpLine(tester, lit: true, distance: 0, positionMs: 3500);
+      await tester.pumpAndSettle();
+      expect(find.byType(ShaderMask), findsNWidgets(2));
+    });
+
     testWidgets('sin nivel word va a texto plano (un solo Text)', (
       tester,
     ) async {

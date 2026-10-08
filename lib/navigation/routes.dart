@@ -18,6 +18,7 @@ class Routes {
   static const String artist = '/artist/:artistId';
   static const String playlist = '/playlist/:playlistId';
   static const String userPlaylist = '/user-playlist/:playlistId';
+  static const String mix = '/mix/:trackId';
 
   // --- Nombres (para navegación tipada) ---
   static const String homeName = 'home';
@@ -29,6 +30,7 @@ class Routes {
   static const String artistName = 'artist';
   static const String playlistName = 'playlist';
   static const String userPlaylistName = 'userPlaylist';
+  static const String mixName = 'mix';
 
   // --- Índice de la bottom nav ---
   static const List<String> shellPaths = [home, search, library, settings];
@@ -49,4 +51,6 @@ class Routes {
 
   static String userPlaylistPath(String playlistId) =>
       '/user-playlist/$playlistId';
+
+  static String mixPath(String trackId) => '/mix/$trackId';
 }

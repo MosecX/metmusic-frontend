@@ -173,6 +173,12 @@ class LyricsLine extends StatelessWidget {
 /// Los offsets de cada palabra se miden con `TextPainter` (con el mismo
 /// ancho y escalado que usa el render) y se cachean por estilo: sólo se
 /// re-mide cuando cambia la línea, no en cada tick de posición.
+///
+/// `positionMs` llega cada ~200 ms (el `positionStream` de just_audio) y
+/// un borde que salta 5 veces por segundo se ve trabado: el widget
+/// interpola entre ticks con un ticker a 60 fps (la posición avanza
+/// linealmente entre actualizaciones, así que el cruce es exacto) y corta
+/// sin animar en seeks o cambios de línea.
 class WordWipeText extends StatefulWidget {
   const WordWipeText({
     super.key,
@@ -193,13 +199,64 @@ class WordWipeText extends StatefulWidget {
   State<WordWipeText> createState() => _WordWipeTextState();
 }
 
-class _WordWipeTextState extends State<WordWipeText> {
+class _WordWipeTextState extends State<WordWipeText>
+    with SingleTickerProviderStateMixin {
   String? _cacheKey;
   String _text = '';
   List<double> _lefts = const [];
   List<double> _rights = const [];
   List<LyricsWipeRow> _rows = const [];
   List<_RowClipper> _clippers = const [];
+
+  /// Posición mostrada: interpola entre el último tick y el nuevo.
+  late final AnimationController _advance;
+  late double _shownMs;
+  double _fromMs = 0;
+  double _toMs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _shownMs = widget.positionMs.toDouble();
+    _fromMs = _shownMs;
+    _toMs = _shownMs;
+    _advance = AnimationController(vsync: this)
+      ..addListener(() {
+        _shownMs = _fromMs + (_toMs - _fromMs) * _advance.value;
+      });
+  }
+
+  @override
+  void didUpdateWidget(covariant WordWipeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.positionMs == oldWidget.positionMs) return;
+    final target = widget.positionMs;
+    final snap = !identical(widget.line, oldWidget.line) ||
+        target < oldWidget.positionMs ||
+        target - _toMs > 1500 ||
+        target <= _shownMs;
+    if (snap) {
+      // Seek, retroceso o cambio de línea: corta, no barre de un extremo
+      // a otro.
+      _advance.stop();
+      _fromMs = target.toDouble();
+      _toMs = target.toDouble();
+      _shownMs = target.toDouble();
+      return;
+    }
+    // Tick normal: de donde estamos al nuevo valor, a velocidad real.
+    _fromMs = _shownMs;
+    _toMs = target.toDouble();
+    _advance.duration =
+        Duration(milliseconds: (target - _shownMs).round().clamp(16, 1500));
+    _advance.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _advance.dispose();
+    super.dispose();
+  }
 
   void _layout(
     BuildContext context,
@@ -265,34 +322,43 @@ class _WordWipeTextState extends State<WordWipeText> {
         final maxWidth = rawMax.isFinite ? rawMax : 1200.0;
         _layout(context, maxWidth, style);
         final fontSize = style.fontSize ?? 16;
-        final layers = <Widget>[
-          Text.rich(
-            TextSpan(
-              text: _text,
-              style: TextStyle(color: widget.baseColor),
-            ),
-            textAlign: align,
-          ),
-        ];
-        for (var i = 0; i < _rows.length; i++) {
-          final row = _rows[i];
-          final edge = lyricsWipeRowEdge(
-            widget.line,
-            _lefts,
-            _rights,
-            row,
-            widget.positionMs,
-          );
-          final lit = _litRow(row, edge, i, fontSize, align);
-          if (lit != null) layers.add(lit);
-          // La banda de acento sólo tiene sentido mientras barre la fila.
-          if (edge > row.left + 0.5 && edge < row.right - 0.5) {
-            layers.add(_accentBand(row, edge, i, fontSize, align));
-          }
-        }
+        // El ticker sólo repinta las capas de ESTA línea mientras interpola
+        // entre ticks; el resto de la hoja se enteró antes (5 Hz).
         return SizedBox(
           width: maxWidth,
-          child: Stack(children: layers),
+          child: AnimatedBuilder(
+            animation: _advance,
+            builder: (context, _) {
+              final positionMs = _shownMs.round();
+              final layers = <Widget>[
+                Text.rich(
+                  TextSpan(
+                    text: _text,
+                    style: TextStyle(color: widget.baseColor),
+                  ),
+                  textAlign: align,
+                ),
+              ];
+              for (var i = 0; i < _rows.length; i++) {
+                final row = _rows[i];
+                final edge = lyricsWipeRowEdge(
+                  widget.line,
+                  _lefts,
+                  _rights,
+                  row,
+                  positionMs,
+                );
+                final lit = _litRow(row, edge, i, fontSize, align);
+                if (lit != null) layers.add(lit);
+                // La banda de acento sólo tiene sentido mientras barre la
+                // fila.
+                if (edge > row.left + 0.5 && edge < row.right - 0.5) {
+                  layers.add(_accentBand(row, edge, i, fontSize, align));
+                }
+              }
+              return Stack(children: layers);
+            },
+          ),
         );
       },
     );
