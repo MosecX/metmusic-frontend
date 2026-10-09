@@ -23,7 +23,7 @@ class TrackRow extends StatefulWidget {
     this.trailing,
     this.showAlbum = false,
     this.showArtwork = true,
-    this.padding = EdgeInsets.zero,
+    this.padding = const EdgeInsets.symmetric(vertical: 7),
   });
 
   final Track track;
@@ -111,7 +111,7 @@ class _TrackRowState extends State<TrackRow> {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: 3),
                   Text(
                     widget.showAlbum && track.album != null
                         ? '${track.artist ?? ''} • ${track.album}'

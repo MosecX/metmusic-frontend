@@ -41,17 +41,17 @@ class ShimmerTrackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          ShimmerBox(width: 48, height: 48, borderRadius: 12),
-          SizedBox(width: 12),
+          ShimmerBox(width: 46, height: 46, borderRadius: 8),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ShimmerBox(width: 180, height: 14),
-                SizedBox(height: 8),
+                SizedBox(height: 6),
                 ShimmerBox(width: 110, height: 12),
               ],
             ),
