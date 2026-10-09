@@ -6,10 +6,11 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../providers/settings_provider.dart';
 
-/// Ajustes en grupos iOS: servicios, reproducción, apariencia y acerca de.
+/// Ajustes en paneles glass: servicios, reproducción, apariencia y acerca de.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -31,95 +32,107 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       children: [
         const Padding(
-          padding: EdgeInsets.only(top: 16, bottom: 4),
+          padding: EdgeInsets.only(top: 16, bottom: 6),
           child: Text('Ajustes', style: AppTextStyles.largeTitle),
         ),
 
         // --- Servicios ---
         const _GroupLabel('Servicios'),
-        const _Group(children: [_ServicesStatus()]),
+        const GlassCard(
+          borderRadius: 16,
+          padding: EdgeInsets.symmetric(vertical: 2),
+          child: _ServicesStatus(),
+        ),
 
         // --- Reproducción ---
         const _GroupLabel('Reproducción'),
-        _Group(
-          children: _withSeparators([
-            _SettingsRow(
-              icon: LucideIcons.volume2,
-              badge: const Color(0xFF0A84FF),
-              label: 'Calidad de audio',
-              value: settings.audioQuality.label,
-              chevron: true,
-              onTap: () => _pickOption(
-                title: 'Calidad de audio',
-                options: AudioQualityPreference.values,
-                labelOf: (q) => q.label,
-                current: settings.audioQuality,
-                onPick: controller.setAudioQuality,
+        GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _withSeparators([
+              _GlassRow(
+                icon: LucideIcons.volume2,
+                label: 'Calidad de audio',
+                value: settings.audioQuality.label,
+                chevron: true,
+                onTap: () => _pickOption(
+                  title: 'Calidad de audio',
+                  options: AudioQualityPreference.values,
+                  labelOf: (q) => q.label,
+                  current: settings.audioQuality,
+                  onPick: controller.setAudioQuality,
+                ),
               ),
-            ),
-            _SettingsRow(
-              icon: LucideIcons.captions,
-              badge: const Color(0xFFFF375F),
-              label: 'Letras',
-              value: settings.lyricsMode.label,
-              chevron: true,
-              onTap: () => _pickOption(
-                title: 'Letras',
-                options: LyricsMode.values,
-                labelOf: (m) => m.label,
-                current: settings.lyricsMode,
-                onPick: controller.setLyricsMode,
+              _GlassRow(
+                icon: LucideIcons.captions,
+                label: 'Letras',
+                value: settings.lyricsMode.label,
+                chevron: true,
+                onTap: () => _pickOption(
+                  title: 'Letras',
+                  options: LyricsMode.values,
+                  labelOf: (m) => m.label,
+                  current: settings.lyricsMode,
+                  onPick: controller.setLyricsMode,
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
 
         // --- Apariencia ---
         const _GroupLabel('Apariencia'),
-        _Group(
-          children: _withSeparators([
-            const _SettingsRow(
-              icon: LucideIcons.slidersHorizontal,
-              badge: Color(0xFF636366),
-              label: 'Tema',
-              value: 'Oscuro',
-            ),
-            _SettingsRow(
-              icon: LucideIcons.trash2,
-              badge: const Color(0xFFFF9F0A),
-              label: 'Limpiar caché del servidor',
-              onTap: () => _clearCache(controller),
-            ),
-          ]),
+        GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _withSeparators([
+              const _GlassRow(
+                icon: LucideIcons.moon,
+                label: 'Tema',
+                value: 'Oscuro',
+              ),
+              _GlassRow(
+                icon: LucideIcons.trash2,
+                label: 'Limpiar caché del servidor',
+                onTap: () => _clearCache(controller),
+              ),
+            ]),
+          ),
         ),
 
         // --- Acerca de ---
         const _GroupLabel('Acerca de'),
-        _Group(
-          children: _withSeparators([
-            const _SettingsRow(
-              icon: LucideIcons.info,
-              badge: Color(0xFF34C759),
-              label: 'Aplicación',
-              value: AppConstants.appName,
-            ),
-            const _SettingsRow(
-              icon: LucideIcons.gitBranch,
-              badge: Color(0xFF636366),
-              label: 'Versión',
-              value: AppConstants.appVersion,
-            ),
-            _SettingsRow(
-              icon: LucideIcons.server,
-              badge: const Color(0xFF5E5CE6),
-              label: 'Backend',
-              value: settings.baseUrl.replaceFirst('https://', ''),
-            ),
-          ]),
+        GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _withSeparators([
+              const _GlassRow(
+                icon: LucideIcons.info,
+                label: 'Aplicación',
+                value: AppConstants.appName,
+              ),
+              const _GlassRow(
+                icon: LucideIcons.gitBranch,
+                label: 'Versión',
+                value: AppConstants.appVersion,
+              ),
+              _GlassRow(
+                icon: LucideIcons.server,
+                label: 'Backend',
+                value: settings.baseUrl.replaceFirst('https://', ''),
+              ),
+            ]),
+          ),
         ),
 
         const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
           child: Text(
             'Cliente personal de música. Metadatos vía Tidal, streaming de alta '
             'calidad vía Qobuz, resueltos por un backend autohospedado.',
@@ -137,36 +150,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required T current,
     required ValueChanged<T> onPick,
   }) {
-    return showDialog<void>(
+    return showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: RadioGroup<T>(
-          groupValue: current,
-          onChanged: (value) {
-            if (value == null) return;
-            onPick(value);
-            Navigator.of(context).pop();
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final option in options)
-                RadioListTile<T>(
-                  value: option,
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(labelOf(option), style: AppTextStyles.body),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => _GlassOptionSheet<T>(
+        title: title,
+        options: options,
+        labelOf: labelOf,
+        current: current,
+        onPick: onPick,
       ),
     );
   }
@@ -194,7 +186,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Grupos iOS
+// Etiquetas de sección y separadores
 // ---------------------------------------------------------------------------
 
 /// Etiqueta de sección (`SERVICIOS`, `REPRODUCCIÓN`, …).
@@ -220,28 +212,6 @@ class _GroupLabel extends StatelessWidget {
   }
 }
 
-/// Contenedor de filas (`#1c1c1e`, radio 13).
-class _Group extends StatelessWidget {
-  const _Group({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.backgroundAlt,
-        borderRadius: BorderRadius.all(Radius.circular(13)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
-    );
-  }
-}
-
 /// Intercala separadores inset (54px) entre filas de un grupo.
 List<Widget> _withSeparators(List<Widget> rows) {
   return [
@@ -252,80 +222,202 @@ List<Widget> _withSeparators(List<Widget> rows) {
   ];
 }
 
-/// Fila de ajustes: badge de color + etiqueta + valor/chevron.
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
+// ---------------------------------------------------------------------------
+// Fila glass
+// ---------------------------------------------------------------------------
+
+/// Fila de ajustes dentro de un panel glass: chip de icono sutil + etiqueta
+/// + valor/chevron. Sin colores estridentes; el estado se comunica con un
+/// punto de 8px.
+class _GlassRow extends StatelessWidget {
+  const _GlassRow({
     required this.icon,
-    required this.badge,
     required this.label,
     this.value,
     this.chevron = false,
+    this.dotColor,
+    this.iconColor,
     this.onTap,
   });
 
   final IconData icon;
-  final Color badge;
   final String label;
   final String? value;
   final bool chevron;
+  final Color? dotColor;
+  final Color? iconColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          child: Row(
-            children: [
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                icon,
+                size: 17,
+                color: iconColor ?? AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (dotColor != null) ...[
+              const SizedBox(width: 8),
               Container(
-                width: 30,
-                height: 30,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
-                  color: badge,
-                  borderRadius: BorderRadius.circular(7.5),
-                ),
-                child: Icon(icon, size: 18, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16.5,
-                    color: AppColors.textPrimary,
-                  ),
+                  color: dotColor,
+                  shape: BoxShape.circle,
                 ),
               ),
-              if (value != null) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    value!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-              if (chevron) ...[
-                const SizedBox(width: 6),
-                const Icon(
-                  LucideIcons.chevronRight,
-                  size: 16,
-                  color: AppColors.textTertiary,
-                ),
-              ],
             ],
-          ),
+            if (value != null) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  value!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+            if (chevron) ...[
+              const SizedBox(width: 6),
+              const Icon(
+                LucideIcons.chevronRight,
+                size: 15,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hoja glass de opciones (calidad de audio / letras)
+// ---------------------------------------------------------------------------
+
+/// Panel flotante con las opciones de una preferencia: título arriba, filas
+/// con check en la selección y "Cancelar" al pie.
+class _GlassOptionSheet<T> extends StatelessWidget {
+  const _GlassOptionSheet({
+    required this.title,
+    required this.options,
+    required this.labelOf,
+    required this.current,
+    required this.onPick,
+  });
+
+  final String title;
+  final List<T> options;
+  final String Function(T) labelOf;
+  final T current;
+  final ValueChanged<T> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundAlt,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            for (final option in options)
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onPick(option);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 13,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          labelOf(option),
+                          style: TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w500,
+                            color: option == current
+                                ? AppColors.accent
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (option == current)
+                        const Icon(LucideIcons.check,
+                            size: 18, color: AppColors.accent),
+                    ],
+                  ),
+                ),
+              ),
+            const Divider(height: 1),
+            InkWell(
+              onTap: () => Navigator.of(context).pop(),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 15),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -339,19 +431,15 @@ class _SettingsRow extends StatelessWidget {
 class _ServicesStatus extends ConsumerWidget {
   const _ServicesStatus();
 
-  static const List<Color> _badges = [
-    Color(0xFF34C759),
-    Color(0xFF0A84FF),
-    Color(0xFFFF9F0A),
-    Color(0xFF5E5CE6),
-    Color(0xFFFF375F),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const green = Color(0xFF34C759);
+    const red = Color(0xFFFF453A);
+
     final health = ref.watch(apiHealthProvider);
     return health.when(
-      loading: () => const _PlainRow(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
             SizedBox(
@@ -367,14 +455,13 @@ class _ServicesStatus extends ConsumerWidget {
       error: (error, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _withSeparators([
-          const _SettingsRow(
+          const _GlassRow(
             icon: LucideIcons.alertTriangle,
-            badge: Color(0xFFFF453A),
+            iconColor: red,
             label: 'No se pudo consultar el estado del backend.',
           ),
-          _SettingsRow(
+          _GlassRow(
             icon: LucideIcons.refreshCw,
-            badge: const Color(0xFF0A84FF),
             label: 'Reintentar',
             onTap: () => ref.invalidate(apiHealthProvider),
           ),
@@ -383,33 +470,27 @@ class _ServicesStatus extends ConsumerWidget {
       data: (status) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _withSeparators([
-          _SettingsRow(
+          _GlassRow(
             icon: status.ok ? LucideIcons.check : LucideIcons.alertTriangle,
-            badge: status.ok
-                ? const Color(0xFF34C759)
-                : const Color(0xFFFF453A),
             label: status.summary,
+            dotColor: status.ok ? green : red,
             value: status.uptimeSeconds != null
                 ? 'Uptime ${_formatUptime(status.uptimeSeconds!)}'
                 : null,
           ),
-          for (var i = 0; i < status.services.length; i++)
-            _SettingsRow(
-              icon: status.services[i].ok
-                  ? LucideIcons.check
-                  : LucideIcons.x,
-              badge: _badges[i % _badges.length],
-              label: status.services[i].name,
+          for (final service in status.services)
+            _GlassRow(
+              icon: service.ok ? LucideIcons.check : LucideIcons.x,
+              label: service.name,
+              dotColor: service.ok ? green : red,
               value: [
-                if (status.services[i].detail != null)
-                  status.services[i].detail!,
-                if (status.services[i].latencyMs != null)
-                  '${status.services[i].latencyMs!.round()} ms',
+                if (service.detail != null) service.detail!,
+                if (service.latencyMs != null)
+                  '${service.latencyMs!.round()} ms',
               ].join(' · '),
             ),
-          _SettingsRow(
+          _GlassRow(
             icon: LucideIcons.refreshCw,
-            badge: const Color(0xFF0A84FF),
             label: 'Actualizar estado',
             onTap: () => ref.invalidate(apiHealthProvider),
           ),
@@ -424,20 +505,5 @@ class _ServicesStatus extends ConsumerWidget {
     final minutes = (total % 3600) ~/ 60;
     if (hours <= 0) return '$minutes min';
     return '$hours h $minutes min';
-  }
-}
-
-/// Fila simple sin badge (loading).
-class _PlainRow extends StatelessWidget {
-  const _PlainRow({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: child,
-    );
   }
 }
