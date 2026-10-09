@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MetMusic · Boceto de rediseño</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- sprites -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 4v16"/><path d="M9 6v14"/><path d="M14 6v14"/><path d="m18.5 6 2.5 14"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 8h8"/><path d="M17 8h3"/><path d="M4 16h3"/><path d="M12 16h8"/><circle cx="14.5" cy="8" r="2.2"/><circle cx="8" cy="16" r="2.2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.4 4.7 13a4.6 4.6 0 0 1 0-6.5 4.6 4.6 0 0 1 6.5 0l.8.8.8-.8a4.6 4.6 0 0 1 6.5 0 4.6 4.6 0 0 1 0 6.5Z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m5.5 9 6.5 6.5L18.5 9"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4L19 12Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.3" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="4" height="14" rx="1.3" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18.5 6.5v11L9.5 12Z" fill="currentColor" stroke="none"/><path d="M6 6v12" stroke-width="2.2"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5.5 6.5v11L14.5 12Z" fill="currentColor" stroke="none"/><path d="M18 6v12" stroke-width="2.2"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.2c1.6 0 3.1.8 4 2.1l3.6 5.2c.9 1.3 2.4 2.1 4 2.1H21"/><path d="m18 13.5 3 3-3 3"/><path d="M3 17h3.2c1.3 0 2.5-.5 3.4-1.4"/><path d="M14.3 8.3c.9-.8 2.1-1.3 3.4-1.3H21"/><path d="m18 4 3 3-3 3"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2.5 3 3-3 3"/><path d="M4 12.5v-1a4 4 0 0 1 4-4h12"/><path d="m7 21.5-3-3 3-3"/><path d="M20 11.5v1a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8.5 6.5H21"/><path d="M8.5 12H21"/><path d="M8.5 17.5H21"/><circle cx="4" cy="6.5" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="17.5" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V5h14v2"/><path d="M12 5v14"/><path d="M9 19h6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11"/><path d="m17.5 6.5-11 11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14" stroke-width="2.2"/></symbol>
+  <symbol id="i-vol-low" viewBox="0 0 24 24"><path d="M4 10v4h3l4 3.5v-11L7 10Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-vol-high" viewBox="0 0 24 24"><path d="M4 10v4h3l4 3.5v-11L7 10Z" fill="currentColor" stroke="none"/><path d="M15 9.5a4 4 0 0 1 0 5"/><path d="M17.5 7.5a7.5 7.5 0 0 1 0 9"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 8.5a15 15 0 0 1 19 0"/><path d="M5.5 12a10.5 10.5 0 0 1 13 0"/><path d="M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7.5 11 4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/></symbol>
+</svg>
+
+<header class="toolbar">
+  <div class="brand">MetMusic<span id="src-badge">Boceto · datos del backend</span></div>
+  <nav class="jump">
+    <button data-goto="s-home" class="on">Inicio</button>
+    <button data-goto="s-search">Buscar</button>
+    <button data-goto="s-library">Biblioteca</button>
+    <button data-goto="s-settings">Ajustes</button>
+    <button data-goto="s-album">Detalle</button>
+    <button data-goto="s-player">Player completo</button>
+  </nav>
+  <div class="palette">
+    <span class="lbl">Acento</span>
+    <button class="swatch on" data-accent="#1db954" style="background:#1db954" title="Verde MetMusic"></button>
+    <button class="swatch" data-accent="#fa2d48" style="background:#fa2d48" title="Rojo Apple Music"></button>
+    <button class="swatch" data-accent="#0a84ff" style="background:#0a84ff" title="Azul"></button>
+    <button class="swatch" data-accent="#bf5af2" style="background:#bf5af2" title="Púrpura"></button>
+    <button class="swatch" data-accent="#ff9f0a" style="background:#ff9f0a" title="Ámbar"></button>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="phone" id="phone">
+    <div class="island"></div>
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="right">
+        <span class="sig"><i></i><i></i><i></i><i></i></span>
+        <svg class="i" style="width:17px;height:17px"><use href="#i-wifi"/></svg>
+        <span class="batt"><i></i></span>
+      </span>
+    </div>
+
+    <!-- ======================================================= INICIO -->
+    <section class="screen active" id="s-home">
+      <div class="pad">
+        <div class="greet">Buenas noches, Moisés</div>
+        <h1 class="ltitle">Inicio</h1>
+        <div class="chips" id="chips"></div>
+        <div id="home-sections"></div>
+      </div>
+    </section>
+
+    <!-- ====================================================== BUSCAR -->
+    <section class="screen" id="s-search">
+      <div class="pad">
+        <h1 class="ltitle" style="margin-top:8px">Buscar</h1>
+        <div class="searchbar">
+          <svg class="i i-18"><use href="#i-search"/></svg>
+          <input id="q" placeholder="Artistas, canciones, álbumes…" autocomplete="off" />
+        </div>
+        <div class="seg types" id="search-types">
+          <button class="on" data-type="all">Todo</button>
+          <button data-type="tracks">Canciones</button>
+          <button data-type="albums">Álbumes</button>
+          <button data-type="artists">Artistas</button>
+          <button data-type="playlists">Playlists</button>
+        </div>
+        <div id="search-results" hidden></div>
+        <div id="search-browse">
+          <div class="sec-head"><h2>Explorar</h2></div>
+          <div class="tiles">
+            <div class="tile g9"><i class="disc"></i><span>Éxitos latinos</span></div>
+            <div class="tile g7"><i class="disc"></i><span>Pop</span></div>
+            <div class="tile g5"><i class="disc"></i><span>Rock</span></div>
+            <div class="tile g3"><i class="disc"></i><span>Chill</span></div>
+            <div class="tile g6"><i class="disc"></i><span>Hip-Hop</span></div>
+            <div class="tile g12"><i class="disc"></i><span>Baladas</span></div>
+            <div class="tile g8"><i class="disc"></i><span>Corridos</span></div>
+            <div class="tile g10"><i class="disc"></i><span>Indie</span></div>
+          </div>
+          <div class="sec-head"><h2>Búsquedas recientes</h2></div>
+          <div id="search-recents"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================ BIBLIOTECA -->
+    <section class="screen" id="s-library">
+      <div class="pad">
+        <h1 class="ltitle" style="margin-top:8px">Tu biblioteca</h1>
+        <div class="seg" id="lib-seg">
+          <button class="on" data-panel="p-play">Playlists</button>
+          <button data-panel="p-fav">Favoritos</button>
+          <button data-panel="p-hist">Historial</button>
+        </div>
+        <div data-panel-for="p-play"><div id="lib-playlists" style="margin-top:10px"></div></div>
+        <div data-panel-for="p-fav" hidden><div id="lib-favs" style="margin-top:10px"></div></div>
+        <div data-panel-for="p-hist" hidden><div id="lib-hist" style="margin-top:10px"></div></div>
+      </div>
+      <button class="fab" title="Nueva playlist"><svg class="i i-24"><use href="#i-plus"/></svg></button>
+    </section>
+
+    <!-- ===================================================== AJUSTES -->
+    <section class="screen" id="s-settings">
+      <div class="pad">
+        <h1 class="ltitle" style="margin-top:8px">Ajustes</h1>
+
+        <div class="group-label">Servicios</div>
+        <div class="group" id="set-services"></div>
+
+        <div class="group-label">Reproducción</div>
+        <div class="group">
+          <div class="srow">
+            <span class="sicon b-blue"><svg class="i i-18"><use href="#i-vol-high"/></svg></span>
+            <span class="k">Calidad de audio</span>
+            <span class="v">Alta (256 kbps) <svg class="i i-16 chev"><use href="#i-chev-right"/></svg></span>
+          </div>
+          <div class="srow">
+            <span class="sicon b-pink"><svg class="i i-18"><use href="#i-text"/></svg></span>
+            <span class="k">Letras</span>
+            <span class="v">Sincronizadas <svg class="i i-16 chev"><use href="#i-chev-right"/></svg></span>
+          </div>
+          <div class="srow" data-toggle>
+            <span class="sicon b-indigo"><svg class="i i-18"><use href="#i-download"/></svg></span>
+            <span class="k">Reproducción sin conexión</span>
+            <span class="sw on"></span>
+          </div>
+        </div>
+
+        <div class="group-label">Apariencia</div>
+        <div class="group">
+          <div class="srow">
+            <span class="sicon b-gray"><svg class="i i-18"><use href="#i-sliders"/></svg></span>
+            <span class="k">Tema</span>
+            <span class="v">Oscuro <svg class="i i-16 chev"><use href="#i-chev-right"/></svg></span>
+          </div>
+          <div class="srow">
+            <span class="sicon b-orange"><svg class="i i-18"><use href="#i-list"/></svg></span>
+            <span class="k">Tamaño de caché</span>
+            <span class="v">412 MB <svg class="i i-16 chev"><use href="#i-chev-right"/></svg></span>
+          </div>
+        </div>
+
+        <div class="group-label">Acerca de</div>
+        <div class="group">
+          <div class="srow">
+            <span class="sicon b-blue"><svg class="i i-18"><use href="#i-more"/></svg></span>
+            <span class="k">Versión del backend</span>
+            <span class="v" id="set-version">—</span>
+          </div>
+          <div class="srow">
+            <span class="sicon b-gray"><svg class="i i-18"><use href="#i-text"/></svg></span>
+            <span class="k">Licencias de código abierto</span>
+            <span class="v"><svg class="i i-16 chev"><use href="#i-chev-right"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================= DETALLE ÁLBUM -->
+    <section class="screen" id="s-album">
+      <div class="detail-nav">
+        <button class="round-btn" id="al-back" title="Volver"><svg class="i i-20"><use href="#i-chev-down"/></svg></button>
+        <button class="round-btn"><svg class="i i-20"><use href="#i-more"/></svg></button>
+      </div>
+      <div class="pad">
+        <div class="hero-art" id="al-art"></div>
+        <div class="detail-title" id="al-title">…</div>
+        <div class="detail-artist" id="al-artist"></div>
+        <div class="detail-meta" id="al-meta"></div>
+        <div class="detail-actions">
+          <button class="act-btn" id="al-shuffle" title="Aleatorio"><svg class="i i-24"><use href="#i-shuffle"/></svg></button>
+          <button class="play-big" id="al-play" title="Reproducir"><svg class="i i-32"><use href="#i-play"/></svg></button>
+          <button class="act-btn"><svg class="i i-24"><use href="#i-more"/></svg></button>
+        </div>
+        <div id="al-tracks" style="margin-top:26px"></div>
+      </div>
+    </section>
+
+    <!-- ================================================ PLAYER FULL -->
+    <section class="screen screen-player" id="s-player">
+      <div class="pl-ambient" id="pl-ambient"></div>
+
+      <div class="player-head">
+        <button class="round-btn" data-goto="s-home"><svg class="i i-20"><use href="#i-chev-down"/></svg></button>
+        <div class="player-titles">
+          <div class="kicker">Reproduciendo</div>
+          <div class="source" id="pl-source">MetMusic</div>
+        </div>
+        <button class="round-btn" title="Cola"><svg class="i i-20"><use href="#i-list"/></svg></button>
+      </div>
+
+      <div class="player-stage" id="pl-stage">
+        <div class="pl-media" id="pl-art">
+          <div class="pl-feather"></div>
+        </div>
+
+        <div class="pl-body" id="pl-body">
+          <div class="player-meta">
+            <div class="meta-text">
+              <div class="t" id="pl-title">—</div>
+              <div class="s" id="pl-artist"></div>
+            </div>
+            <button class="round-btn meta-fav" id="pl-fav" title="Favorito">
+              <svg class="i i-22"><use href="#i-heart"/></svg>
+            </button>
+          </div>
+
+          <div class="scrub">
+            <div class="bar"><i id="pl-prog"></i></div>
+            <div class="times"><span id="pl-elapsed">1:12</span><span id="pl-total">3:20</span></div>
+          </div>
+
+          <div class="controls">
+            <button class="side" id="pl-shuffle" title="Aleatorio"><svg class="i i-24"><use href="#i-shuffle"/></svg></button>
+            <button class="side" title="Anterior"><svg class="i i-28"><use href="#i-prev"/></svg></button>
+            <button class="play-round" id="pl-toggle"><svg class="i i-32"><use href="#i-pause"/></svg></button>
+            <button class="side" title="Siguiente"><svg class="i i-28"><use href="#i-next"/></svg></button>
+            <button class="side" id="pl-repeat" title="Repetir"><svg class="i i-24"><use href="#i-repeat"/></svg></button>
+          </div>
+
+          <div class="secondary">
+            <button class="pill-btn"><svg class="i i-16"><use href="#i-plus"/></svg>Playlist</button>
+            <button class="pill-btn"><svg class="i i-16"><use href="#i-list"/></svg>Cola</button>
+            <button class="pill-btn"><svg class="i i-16"><use href="#i-text"/></svg>Letras</button>
+          </div>
+
+          <div class="qbadge-wrap">
+            <span class="qbadge" id="qbadge" hidden>
+              <svg class="i i-16"><use href="#i-signal"/></svg>
+              <span id="qbadge-label"></span>
+              <span class="qprev" id="qprev" hidden>PREVIEW</span>
+            </span>
+          </div>
+
+          <p class="center-note">Demo sin stream: tocar cualquier canción solo actualiza los metadatos del reproductor.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= DOCK -->
+    <div class="dock" id="dock">
+      <div class="mini" id="mini" data-goto="s-player">
+        <div class="art" id="mini-art"></div>
+        <div class="meta">
+          <div class="t" id="mini-title">—</div>
+          <div class="s" id="mini-artist"></div>
+        </div>
+        <button class="btn" id="mini-toggle"><svg class="i i-22"><use href="#i-pause"/></svg></button>
+        <button class="btn"><svg class="i i-22"><use href="#i-next"/></svg></button>
+        <div class="prog"><i></i></div>
+      </div>
+      <nav class="tabbar">
+        <button class="tab on" data-goto="s-home"><svg class="i"><use href="#i-home"/></svg>Inicio</button>
+        <button class="tab" data-goto="s-search"><svg class="i"><use href="#i-search"/></svg>Buscar</button>
+        <button class="tab" data-goto="s-library"><svg class="i"><use href="#i-library"/></svg>Biblioteca</button>
+        <button class="tab" data-goto="s-settings"><svg class="i"><use href="#i-sliders"/></svg>Ajustes</button>
+      </nav>
+    </div>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
