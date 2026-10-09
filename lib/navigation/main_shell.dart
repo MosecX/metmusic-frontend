@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/theme/app_colors.dart';
-import '../core/theme/app_text_styles.dart';
 import '../core/widgets/glass_card.dart';
 import '../features/player/providers/player_provider.dart';
 import '../features/player/ui/mini_player.dart';
@@ -125,7 +123,8 @@ class _GlassNavBar extends StatelessWidget {
       top: false,
       minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        borderRadius: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         child: Row(
           children: [
             for (var i = 0; i < items.length; i++)
@@ -166,18 +165,18 @@ class _NavButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(item.icon, size: 22, color: color),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               item.label,
-              style: AppTextStyles.caption.copyWith(
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 color: color,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
         ),
       ),
-    ).animate(target: selected ? 1 : 0).tint(
-        color: AppColors.accent.withValues(alpha: 0.12), duration: 200.ms);
+    );
   }
 }

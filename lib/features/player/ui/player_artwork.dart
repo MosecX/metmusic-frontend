@@ -38,7 +38,6 @@ class PlayerArtwork extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: AppColors.glassBorder),
         color: Colors.white.withValues(alpha: 0.05),
         boxShadow: elevated
             ? [

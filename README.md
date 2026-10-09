@@ -134,7 +134,7 @@ config del backend) sí se muestran en pantalla.
 
 - Fondo base negro profundo `#0A0A0F` con un gradiente muy oscuro.
 - Todo flota como capas de vidrio esmerilado: `borderRadius: 20`, sin bordes duros.
-- Acento verde neón `#1DB954` (degradado hacia `#14B8A6`).
+- Acento morado `#BF5AF2` (degradado hacia `#7C4DFF`).
 - **Dark mode siempre.** No hay modo claro (ni en el tema ni en el launch theme).
 - Espaciado generoso: padding 16–24 px, gaps 12–16 px.
 

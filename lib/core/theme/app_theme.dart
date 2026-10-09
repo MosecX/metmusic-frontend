@@ -45,7 +45,7 @@ class AppTheme {
       ),
       iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 22),
       dividerTheme: const DividerThemeData(
-        color: AppColors.glassBorder,
+        color: AppColors.separator,
         thickness: 1,
         space: 1,
       ),
@@ -71,19 +71,19 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: AppColors.controlFill,
         hintStyle: AppTextStyles.bodyLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.glassBorder),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.glassBorder),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.accent, width: 1.2),
         ),
       ),
@@ -112,21 +112,23 @@ class AppTheme {
         iconColor: AppColors.textSecondary,
         textColor: AppColors.textPrimary,
       ),
+      // Switch estilo iOS: thumb blanco siempre, track gris → acento.
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? AppColors.accent
-              : Colors.white.withValues(alpha: 0.5),
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.9),
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? AppColors.accent.withValues(alpha: 0.35)
-              : Colors.white.withValues(alpha: 0.08),
+              ? AppColors.accent
+              : const Color(0x52787880),
         ),
+        trackOutlineColor: WidgetStateProperty.resolveWith((_) => Colors.transparent),
       ),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: AppColors.accent,
-        selectionColor: Color(0x551DB954),
+        selectionColor: Color(0x55BF5AF2),
         selectionHandleColor: AppColors.accent,
       ),
     );

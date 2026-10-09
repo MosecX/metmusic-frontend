@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/glass_styles.dart';
 
-/// Capa de vidrio estilo **Glass 2**: relleno transparente + blur + borde.
+/// Capa de vidrio estilo **Glass 2**: relleno blanco 10% + blur + borde.
 ///
 /// Se usa para cards, secciones, búsqueda, bottom nav y headers.
 class GlassCard extends StatelessWidget {
@@ -39,7 +39,9 @@ class GlassCard extends StatelessWidget {
       height: height,
       padding: padding,
       decoration: GlassStyles.cardDecoration(borderRadius: radius, fill: fill),
-      child: child,
+      // Material transparente propio: los ListTiles/InkWells internos pintan
+      // sobre el relleno de la card en vez de quedar ocultos debajo.
+      child: Material(type: MaterialType.transparency, child: child),
     );
 
     return Padding(

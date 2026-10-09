@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -162,16 +164,252 @@ class GlassBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.only(left: 8, top: 6),
       child: Material(
-        color: Colors.black.withValues(alpha: 0.35),
-        shape: const CircleBorder(),
+        color: Colors.transparent,
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.glassBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap ?? () => Navigator.of(context).maybePop(),
+            child: const ColoredBox(
+              color: AppColors.glassFill,
+              child: SizedBox(
+                width: 38,
+                height: 38,
+                child: Icon(LucideIcons.chevronLeft,
+                    size: 20, color: AppColors.textPrimary),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cabecera de detalle centrada (boceto): hero + título + artista + acciones.
+// ---------------------------------------------------------------------------
+
+/// Cabecera de las pantallas de detalle de álbum / artista / playlist.
+///
+/// Se coloca dentro de un `SliverToBoxAdapter`; el `SliverAppBar` encima
+/// sólo aporta el botón atrás y el título de sección.
+class DetailHeader extends StatelessWidget {
+  const DetailHeader({
+    super.key,
+    required this.imageUrl,
+    required this.title,
+    this.artist,
+    this.meta,
+    this.isRound = false,
+    this.onArtistTap,
+    this.onShuffle,
+    this.onPlay,
+    this.onMore,
+    this.actionsEnabled = true,
+  });
+
+  final String imageUrl;
+  final String title;
+  final String? artist;
+  final String? meta;
+  final bool isRound;
+  final VoidCallback? onArtistTap;
+  final VoidCallback? onShuffle;
+  final VoidCallback? onPlay;
+  final VoidCallback? onMore;
+  final bool actionsEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(child: _HeroArtwork(url: imageUrl, isRound: isRound)),
+          const SizedBox(height: 22),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+              color: AppColors.textPrimary,
+              height: 1.15,
+            ),
+          ),
+          if (artist != null && artist!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            if (onArtistTap != null)
+              GestureDetector(
+                onTap: onArtistTap,
+                child: Text(
+                  artist!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.accent,
+                  ),
+                ),
+              )
+            else
+              Text(
+                artist!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+          ],
+          if (meta != null && meta!.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Text(
+              meta!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.cardSubtitle,
+            ),
+          ],
+          const SizedBox(height: 26),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (onShuffle != null) ...[
+                _CircleAction(
+                  icon: LucideIcons.shuffle,
+                  onTap: actionsEnabled ? onShuffle : null,
+                ),
+                const SizedBox(width: 34),
+              ],
+              if (onPlay != null)
+                _CircleAction(
+                  icon: LucideIcons.play,
+                  primary: true,
+                  onTap: actionsEnabled ? onPlay : null,
+                ),
+              if (onMore != null) ...[
+                const SizedBox(width: 34),
+                _CircleAction(
+                  icon: LucideIcons.ellipsis,
+                  onTap: onMore,
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroArtwork extends StatelessWidget {
+  const _HeroArtwork({required this.url, required this.isRound});
+
+  final String url;
+  final bool isRound;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final size = (screenWidth - 96).clamp(170.0, 264.0);
+    final borderRadius = isRound ? BorderRadius.zero : BorderRadius.circular(12);
+
+    final content = ColoredBox(
+      color: Colors.white.withValues(alpha: 0.05),
+      child: url.isEmpty
+          ? _fallback(size)
+          : CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => _fallback(size),
+              errorWidget: (_, __, ___) => _fallback(size),
+            ),
+    );
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: isRound
+          ? ClipOval(child: content)
+          : ClipRRect(borderRadius: borderRadius, child: content),
+    );
+  }
+
+  Widget _fallback(double size) => SizedBox(
+        width: size,
+        height: size,
+        child: Icon(
+          isRound ? LucideIcons.user : LucideIcons.disc3,
+          size: size * 0.28,
+          color: AppColors.textTertiary,
+        ),
+      );
+}
+
+/// Botón circular de acciones de la cabecera (shuffle / play / más).
+class _CircleAction extends StatelessWidget {
+  const _CircleAction({
+    required this.icon,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Material(
+        color: primary ? AppColors.accent : AppColors.glassFill,
+        shape: CircleBorder(
+          side: primary
+              ? BorderSide.none
+              : const BorderSide(color: AppColors.glassBorder),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap ?? () => Navigator.of(context).maybePop(),
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Icon(LucideIcons.chevronLeft, size: 20),
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 58,
+            height: 58,
+            child: Icon(
+              icon,
+              size: primary ? 26 : 24,
+              color: primary ? Colors.black : AppColors.textPrimary,
+            ),
           ),
         ),
       ),

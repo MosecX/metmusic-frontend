@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -9,7 +11,6 @@ import '../../../core/utils/duration_formatter.dart';
 import '../../../core/widgets/collapsible_header.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
-import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
 import '../../../navigation/main_shell.dart';
@@ -128,80 +129,44 @@ class _Content extends ConsumerWidget {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: 320,
           pinned: true,
           backgroundColor: AppColors.background,
+          surfaceTintColor: Colors.transparent,
           leading: const GlassBackButton(),
-          flexibleSpace: FlexibleSpaceBar(
-            collapseMode: CollapseMode.parallax,
-            background: CollapsibleHeader(
-              imageUrl: view.imageUrl,
-              title: view.title,
-              meta: view.meta,
-              subtitle: [
-                if (view.subtitle != null && view.subtitle!.isNotEmpty)
-                  view.subtitle!,
-                '${tracks.length} canciones',
-                if (total > Duration.zero) DurationFormatter.long(total),
-              ].join(' • '),
-            ),
+          centerTitle: true,
+          title: Text(
+            view.meta,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed:
-                        tracks.isEmpty ? null : () => ref.playAll(tracks),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.play, size: 18),
-                    label: const Text('Reproducir todo'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: tracks.isEmpty
-                        ? null
-                        : () => ref.playAll(tracks, shuffled: true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.shuffle, size: 18),
-                    label: const Text('Aleatorio'),
-                  ),
-                ),
-              ],
-            ),
+          child: DetailHeader(
+            imageUrl: view.imageUrl,
+            title: view.title,
+            artist: (view.subtitle != null && view.subtitle!.isNotEmpty)
+                ? view.subtitle
+                : null,
+            meta: [
+              '${tracks.length} canciones',
+              if (total > Duration.zero) DurationFormatter.long(total),
+            ].join(' • '),
+            actionsEnabled: tracks.isNotEmpty,
+            onShuffle: tracks.isEmpty
+                ? null
+                : () => ref.playAll(tracks, shuffled: true),
+            onPlay: tracks.isEmpty ? null : () => ref.playAll(tracks),
+            onMore: tracks.isEmpty ? null : () => _showMore(context, ref),
           ),
         ),
         if (view.description != null && view.description!.trim().isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: GlassCard(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  view.description!,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyLight,
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              child: Text(
+                view.description!,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyLight,
               ),
             ),
           ),
@@ -220,26 +185,61 @@ class _Content extends ConsumerWidget {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 160),
             sliver: SliverToBoxAdapter(
-              child: GlassCard(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < tracks.length; i++)
-                      _PlaylistTrackRow(
-                        track: tracks[i],
-                        index: i + 1,
-                        queue: tracks,
-                        canRemove: view.isUserPlaylist,
-                        onRemove: () => ref
-                            .read(userPlaylistsProvider.notifier)
-                            .removeTrack(playlistId, tracks[i].trackId),
-                      ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < tracks.length; i++)
+                    _PlaylistTrackRow(
+                      track: tracks[i],
+                      index: i + 1,
+                      queue: tracks,
+                      canRemove: view.isUserPlaylist,
+                      onRemove: () => ref
+                          .read(userPlaylistsProvider.notifier)
+                          .removeTrack(playlistId, tracks[i].trackId),
+                    ),
+                ],
               ),
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _showMore(BuildContext context, WidgetRef ref) {
+    final tracks = view.tracks;
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.backgroundAlt,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.shuffle,
+                  color: AppColors.textPrimary),
+              title: const Text('Reproducir aleatorio'),
+              onTap: () {
+                Navigator.of(context).pop();
+                ref.playAll(tracks, shuffled: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.listPlus,
+                  color: AppColors.textPrimary),
+              title: const Text('Agregar todas a la cola'),
+              onTap: () {
+                Navigator.of(context).pop();
+                for (final track in tracks) {
+                  unawaited(ref.enqueueTrack(track));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

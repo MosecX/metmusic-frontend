@@ -13,6 +13,7 @@ import '../../../core/utils/duration_formatter.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/segmented_control.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
 import '../../../navigation/routes.dart';
@@ -39,6 +40,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     super.initState();
     _tabs = TabController(length: LibraryTab.values.length, vsync: this);
     _tabs.addListener(() {
+      if (!mounted) return;
+      setState(() {});
       if (!_tabs.indexIsChanging) {
         ref.read(libraryTabProvider.notifier).state =
             LibraryTab.values[_tabs.index];
@@ -58,29 +61,24 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     // tapa el borde inferior del contenido. El botón "Nueva" tiene que subir
     // cuando hay reproducción, si no el player se lo come.
     final hasTrack = ref.watch(hasActiveTrackProvider);
-    final miniPlayerOffset = hasTrack
-        ? AppConstants.miniPlayerHeight + AppConstants.miniPlayerBottomGap
-        : 0.0;
 
     return Stack(
       children: [
         Column(
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Row(
-                children: [
-                  Text('Tu biblioteca', style: AppTextStyles.headline),
-                ],
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text('Tu biblioteca', style: AppTextStyles.largeTitle),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SegmentedControl(
+                labels: [for (final tab in LibraryTab.values) tab.label],
+                selectedIndex: _tabs.index,
+                onChanged: (index) => _tabs.index = index,
               ),
             ),
-            TabBar(
-              controller: _tabs,
-              tabs: [
-                for (final tab in LibraryTab.values) Tab(text: tab.label),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Expanded(
               child: TabBarView(
                 controller: _tabs,
@@ -94,16 +92,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           ],
         ),
         Positioned(
-          right: 16,
-          bottom: 100 + miniPlayerOffset,
-          child: FloatingActionButton.extended(
+          right: 20,
+          bottom: hasTrack
+              ? AppConstants.shellBottomInset + 24
+              : AppConstants.navBarHeight + 32,
+          child: FloatingActionButton(
             heroTag: 'library-create-playlist',
             backgroundColor: AppColors.accent,
             foregroundColor: Colors.black,
             elevation: 0,
+            tooltip: 'Nueva playlist',
             onPressed: () => _createPlaylist(context),
-            icon: const Icon(LucideIcons.plus, size: 18),
-            label: const Text('Nueva'),
+            child: const Icon(LucideIcons.plus, size: 24),
           )
               .animate()
               .fadeIn(duration: 300.ms)
@@ -167,10 +167,9 @@ class _PlaylistsTab extends ConsumerWidget {
           color: AppColors.accent,
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(userPlaylistsProvider.notifier).refresh(),
-          child: ListView.separated(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 170),
+          child: ListView.builder(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _PlaylistTile(
               playlist: items[index],
               onTap: () =>
@@ -255,50 +254,56 @@ class _PlaylistTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
+    // Fila plana estilo boceto: portada 56 + título 17 + subtítulo.
+    return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: Colors.white.withValues(alpha: 0.05),
-              border: Border.all(color: AppColors.glassBorder),
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+              child: const Icon(LucideIcons.listMusic,
+                  size: 24, color: AppColors.textTertiary),
             ),
-            child: const Icon(LucideIcons.listMusic,
-                size: 22, color: AppColors.textTertiary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  playlist.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.body,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${playlist.numberOfTracks} canciones',
-                  style: AppTextStyles.caption,
-                ),
-              ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    playlist.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.rowTitle.copyWith(fontSize: 17),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${playlist.numberOfTracks} canciones',
+                    style: AppTextStyles.rowSubtitle,
+                  ),
+                ],
+              ),
             ),
-          ),
-          GestureDetector(
-            onTap: onLongPress,
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(LucideIcons.moreVertical,
-                  size: 18, color: AppColors.textTertiary),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onLongPress,
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(LucideIcons.moreVertical,
+                    size: 18, color: AppColors.textTertiary),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -380,37 +385,30 @@ class _FavoritesTab extends ConsumerWidget {
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(favoritesListProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 170),
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             children: [
-              GlassCard(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < tracks.length; i++)
-                      TrackRow(
-                        track: tracks[i],
-                        isActive: tracks[i].trackId == currentId,
-                        isPlaying: playing,
-                        onTap: () => ref.playTrack(
-                          tracks[i],
-                          context: tracks,
-                          index: i,
-                        ),
-                        onLongPress: () =>
-                            openTrackContextMenu(context, ref, tracks[i]),
-                        trailing: IconButton(
-                          tooltip: 'Quitar de favoritos',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () => ref
-                              .read(favoritesListProvider.notifier)
-                              .remove(tracks[i].trackId),
-                          icon: const Icon(LucideIcons.heart,
-                              size: 16, color: AppColors.accent),
-                        ),
-                      ),
-                  ],
+              for (var i = 0; i < tracks.length; i++)
+                TrackRow(
+                  track: tracks[i],
+                  isActive: tracks[i].trackId == currentId,
+                  isPlaying: playing,
+                  onTap: () => ref.playTrack(
+                    tracks[i],
+                    context: tracks,
+                    index: i,
+                  ),
+                  onLongPress: () =>
+                      openTrackContextMenu(context, ref, tracks[i]),
+                  trailing: IconButton(
+                    tooltip: 'Quitar de favoritos',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => ref
+                        .read(favoritesListProvider.notifier)
+                        .remove(tracks[i].trackId),
+                    icon: const Icon(LucideIcons.heart,
+                        size: 16, color: AppColors.accent),
+                  ),
                 ),
-              ),
             ],
           ),
         );
@@ -458,7 +456,7 @@ class _HistoryTab extends ConsumerWidget {
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(historyListProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 170),
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             children: [
               Row(
                 children: [
@@ -475,24 +473,17 @@ class _HistoryTab extends ConsumerWidget {
                   ),
                 ],
               ),
-              GlassCard(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < entries.length; i++)
-                      _HistoryRow(
-                        entry: entries[i],
-                        onTap: entries[i].track == null
-                            ? null
-                            : () => ref.playTrack(
-                                  entries[i].track!,
-                                  context: tracks,
-                                  index: tracks.indexOf(entries[i].track!),
-                                ),
-                      ),
-                  ],
+              for (var i = 0; i < entries.length; i++)
+                _HistoryRow(
+                  entry: entries[i],
+                  onTap: entries[i].track == null
+                      ? null
+                      : () => ref.playTrack(
+                            entries[i].track!,
+                            context: tracks,
+                            index: tracks.indexOf(entries[i].track!),
+                          ),
                 ),
-              ),
             ],
           ),
         );

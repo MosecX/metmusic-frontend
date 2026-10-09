@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/artist.dart';
 import '../../../core/models/playlist.dart';
@@ -15,8 +15,9 @@ import '../../../core/widgets/album_card.dart';
 import '../../../core/widgets/artist_card.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
-import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/playlist_card.dart';
+import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/segmented_control.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
 import '../../../navigation/routes.dart';
@@ -26,7 +27,8 @@ import '../../player/ui/track_context_menu.dart';
 import '../models/search_models.dart';
 import '../providers/search_provider.dart';
 
-/// Pantalla de búsqueda con tabs por tipo de contenido.
+/// Pantalla de búsqueda: título grande, campo iOS, filtro segmentado y
+/// resultados (o grid "Explorar" cuando no hay query).
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -34,53 +36,36 @@ class SearchScreen extends ConsumerStatefulWidget {
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends ConsumerState<SearchScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _input = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    // Arranca en el tipo que ya tenga el provider: si no, al volver de otra
-    // pantalla el `TabBar` marcaba "Todo" mientras los resultados seguían
-    // filtrados por el tipo anterior.
-    _tabs = TabController(
-      length: SearchType.values.length,
-      vsync: this,
-      initialIndex: SearchType.values.indexOf(ref.read(searchProvider).type),
-    );
-    _tabs.addListener(() {
-      if (!_tabs.indexIsChanging) {
-        ref
-            .read(searchProvider.notifier)
-            .setType(SearchType.values[_tabs.index]);
-      }
-    });
-  }
-
-  @override
   void dispose() {
-    _tabs.dispose();
     _input.dispose();
     super.dispose();
+  }
+
+  /// Rellena el campo con un género del grid "Explorar" y busca.
+  void _browsePick(String label) {
+    _input.text = label;
+    final notifier = ref.read(searchProvider.notifier);
+    notifier.updateQuery(label);
+    notifier.submit();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchProvider);
 
-    // El provider manda: `clear()` u otro consumidor pueden cambiar el tipo
-    // sin pasar por el `TabBar`, y el selector tiene que seguirlo.
-    ref.listen(searchProvider.select((s) => s.type), (_, next) {
-      final index = SearchType.values.indexOf(next);
-      if (_tabs.index != index && !_tabs.indexIsChanging) _tabs.index = index;
-    });
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Text('Buscar', style: AppTextStyles.largeTitle),
+        ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           child: _SearchField(
             controller: _input,
             onChanged: (value) =>
@@ -92,17 +77,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
             },
           ),
         ),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          tabs: [
-            for (final type in SearchType.values) Tab(text: type.label),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedControl(
+            labels: [for (final type in SearchType.values) type.label],
+            selectedIndex: SearchType.values.indexOf(state.type),
+            fontSize: 12,
+            onChanged: (index) =>
+                ref.read(searchProvider.notifier).setType(SearchType.values[index]),
+          ),
         ),
-        const SizedBox(height: 8),
-        Expanded(child: _Results(state: state)),
+        const SizedBox(height: 4),
+        Expanded(
+          child: _Results(state: state, onBrowsePick: _browsePick),
+        ),
       ],
     );
   }
@@ -123,14 +111,17 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      borderRadius: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.controlFill,
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
+      padding: const EdgeInsets.only(left: 13, right: 6),
       child: Row(
         children: [
           const Icon(LucideIcons.search,
               size: 18, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
+          const SizedBox(width: 9),
           Expanded(
             child: TextField(
               controller: controller,
@@ -138,14 +129,18 @@ class _SearchField extends StatelessWidget {
               onSubmitted: onSubmitted,
               textInputAction: TextInputAction.search,
               textCapitalization: TextCapitalization.none,
-              style: AppTextStyles.body,
+              style: const TextStyle(fontSize: 17, color: AppColors.textPrimary),
               decoration: const InputDecoration(
-                hintText: 'Canciones, álbumes, artistas…',
+                hintText: 'Artistas, canciones, álbumes…',
+                hintStyle: TextStyle(
+                  fontSize: 17,
+                  color: AppColors.textTertiary,
+                ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 filled: false,
-                contentPadding: EdgeInsets.symmetric(vertical: 14),
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
                 isDense: true,
               ),
             ),
@@ -168,9 +163,10 @@ class _SearchField extends StatelessWidget {
 }
 
 class _Results extends ConsumerWidget {
-  const _Results({required this.state});
+  const _Results({required this.state, required this.onBrowsePick});
 
   final SearchState state;
+  final ValueChanged<String> onBrowsePick;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -189,11 +185,7 @@ class _Results extends ConsumerWidget {
     }
 
     if (state.showEmptyPrompt) {
-      return const EmptyState(
-        icon: LucideIcons.search,
-        title: 'Buscá algo para empezar',
-        subtitle: 'Encontrá canciones, álbumes, artistas y playlists.',
-      );
+      return _Browse(onPick: onBrowsePick);
     }
 
     if (state.showNoResults) {
@@ -207,14 +199,160 @@ class _Results extends ConsumerWidget {
     final results = state.results;
     return switch (state.type) {
       SearchType.all => _AllResults(results: results),
-      SearchType.tracks => _TrackResults(
-          tracks: results.tracks,
-          title: 'Canciones',
-        ),
+      SearchType.tracks => _TrackResults(results.tracks),
       SearchType.albums => _AlbumResults(albums: results.albums),
       SearchType.artists => _ArtistResults(artists: results.artists),
       SearchType.playlists => _PlaylistResults(playlists: results.playlists),
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Explorar (estado vacío)
+// ---------------------------------------------------------------------------
+
+/// Grid de géneros estilo boceto: tiles con degradado y disco decorativo.
+class _Browse extends StatelessWidget {
+  const _Browse({required this.onPick});
+
+  final ValueChanged<String> onPick;
+
+  static const List<(String, Color, Color)> _tiles = [
+    ('Éxitos latinos', Color(0xFFFC466B), Color(0xFF3F5EFB)),
+    ('Pop', Color(0xFF8E2DE2), Color(0xFF4A00E0)),
+    ('Rock', Color(0xFFF7971E), Color(0xFFFFD200)),
+    ('Chill', Color(0xFF2B6CB0), Color(0xFF63B3ED)),
+    ('Hip-Hop', Color(0xFF0F2027), Color(0xFF2C5364)),
+    ('Baladas', Color(0xFFFF758C), Color(0xFFFF7EB3)),
+    ('Corridos', Color(0xFF11998E), Color(0xFF38EF7D)),
+    ('Indie', Color(0xFF355C7D), Color(0xFFC06C84)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
+      children: [
+        const SectionHeader(title: 'Explorar'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              mainAxisExtent: 96,
+              crossAxisSpacing: 13,
+              mainAxisSpacing: 13,
+            ),
+            itemCount: _tiles.length,
+            itemBuilder: (context, index) {
+              final (label, from, to) = _tiles[index];
+              return _BrowseTile(
+                label: label,
+                from: from,
+                to: to,
+                onTap: () => onPick(label),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BrowseTile extends StatelessWidget {
+  const _BrowseTile({
+    required this.label,
+    required this.from,
+    required this.to,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color from;
+  final Color to;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 96,
+          child: Stack(
+            children: [
+              // Degradado 135°.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [from, to],
+                  ),
+                ),
+                child: const SizedBox.expand(),
+              ),
+              // Disco decorativo.
+              Positioned(
+                right: -18,
+                top: -18,
+                child: Container(
+                  width: 74,
+                  height: 74,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.25),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              // Velo inferior para legibilidad.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0.4, 1],
+                    colors: [Colors.transparent, Color(0x59000000)],
+                  ),
+                ),
+                child: SizedBox.expand(),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Color(0x59000000),
+                        blurRadius: 6,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -230,22 +368,22 @@ class _AllResults extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.only(bottom: 160),
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
       children: [
         if (results.tracks.isNotEmpty) ...[
-          const _GroupTitle('Canciones', onMore: null),
+          const SectionHeader(title: 'Canciones'),
           _TrackList(results.tracks),
         ],
         if (results.albums.isNotEmpty) ...[
-          const _GroupTitle('Álbumes'),
+          const SectionHeader(title: 'Álbumes'),
           _AlbumList(results.albums),
         ],
         if (results.artists.isNotEmpty) ...[
-          const _GroupTitle('Artistas'),
+          const SectionHeader(title: 'Artistas'),
           _ArtistList(results.artists),
         ],
         if (results.playlists.isNotEmpty) ...[
-          const _GroupTitle('Playlists'),
+          const SectionHeader(title: 'Playlists'),
           _PlaylistList(results.playlists),
         ],
       ],
@@ -254,10 +392,9 @@ class _AllResults extends ConsumerWidget {
 }
 
 class _TrackResults extends ConsumerWidget {
-  const _TrackResults({required this.tracks, required this.title});
+  const _TrackResults(this.tracks);
 
   final List<Track> tracks;
-  final String title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -269,7 +406,7 @@ class _TrackResults extends ConsumerWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 160),
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
       children: [_TrackList(tracks)],
     );
   }
@@ -290,7 +427,7 @@ class _AlbumResults extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 160),
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
       children: [_AlbumList(albums)],
     );
   }
@@ -311,7 +448,7 @@ class _ArtistResults extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 160),
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
       children: [_ArtistList(artists)],
     );
   }
@@ -332,7 +469,7 @@ class _PlaylistResults extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 160),
+      padding: const EdgeInsets.only(bottom: AppConstants.shellBottomInset),
       children: [_PlaylistList(playlists)],
     );
   }
@@ -350,25 +487,20 @@ class _TrackList extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          children: [
-            for (var i = 0; i < tracks.length; i++)
-              TrackRow(
-                track: tracks[i],
-                isActive: tracks[i].trackId == currentId,
-                isPlaying: playing,
-                showAlbum: true,
-                onTap: () =>
-                    ref.playTrack(tracks[i], context: tracks, index: i),
-                onPlayTap: () =>
-                    ref.playTrack(tracks[i], context: tracks, index: i),
-                onLongPress: () =>
-                    openTrackContextMenu(context, ref, tracks[i]),
-              ),
-          ],
-        ),
+      child: Column(
+        children: [
+          for (var i = 0; i < tracks.length; i++)
+            TrackRow(
+              track: tracks[i],
+              isActive: tracks[i].trackId == currentId,
+              isPlaying: playing,
+              showAlbum: true,
+              onTap: () =>
+                  ref.playTrack(tracks[i], context: tracks, index: i),
+              onLongPress: () =>
+                  openTrackContextMenu(context, ref, tracks[i]),
+            ),
+        ],
       ),
     );
   }
@@ -382,12 +514,12 @@ class _AlbumList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 224,
+      height: 216,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: albums.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) => AlbumCard(
           album: albums[index],
           onTap: () => context.push(Routes.albumPath(albums[index].albumId)),
@@ -405,15 +537,15 @@ class _ArtistList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 178,
+      height: 164,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: artists.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) => ArtistCard(
           artist: artists[index],
-          size: 110,
+          size: 108,
           onTap: () => context.push(Routes.artistPath(artists[index].artistId)),
         ),
       ),
@@ -429,12 +561,12 @@ class _PlaylistList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 224,
+      height: 216,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: playlists.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) => PlaylistCard(
           playlist: playlists[index],
           onTap: () =>
@@ -442,27 +574,5 @@ class _PlaylistList extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _GroupTitle extends StatelessWidget {
-  const _GroupTitle(this.title, {this.onMore});
-
-  final String title;
-  final VoidCallback? onMore;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-      child: Row(
-        children: [
-          Text(title, style: AppTextStyles.title),
-          const Spacer(),
-          if (onMore != null)
-            TextButton(onPressed: onMore, child: const Text('Ver todo')),
-        ],
-      ),
-    ).animate().fadeIn(duration: 200.ms);
   }
 }

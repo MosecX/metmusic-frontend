@@ -13,6 +13,7 @@ import '../features/player/ui/mix_screen.dart';
 import '../features/playlist/ui/playlist_detail_screen.dart';
 import '../features/search/ui/search_screen.dart';
 import '../features/settings/ui/settings_screen.dart';
+import 'app_page_transitions.dart';
 import 'main_shell.dart';
 import 'routes.dart';
 
@@ -50,58 +51,60 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.album,
         name: Routes.albumName,
-        builder: (_, state) =>
-            AlbumDetailScreen(albumId: state.pathParameters['albumId'] ?? ''),
+        pageBuilder: (_, state) => AppPageTransitions.push<void>(
+          key: state.pageKey,
+          child: AlbumDetailScreen(
+            albumId: state.pathParameters['albumId'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.artist,
         name: Routes.artistName,
-        builder: (_, state) =>
-            ArtistDetailScreen(artistId: state.pathParameters['artistId'] ?? ''),
+        pageBuilder: (_, state) => AppPageTransitions.push<void>(
+          key: state.pageKey,
+          child: ArtistDetailScreen(
+            artistId: state.pathParameters['artistId'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.playlist,
         name: Routes.playlistName,
-        builder: (_, state) => PlaylistDetailScreen(
-          playlistId: state.pathParameters['playlistId'] ?? '',
+        pageBuilder: (_, state) => AppPageTransitions.push<void>(
+          key: state.pageKey,
+          child: PlaylistDetailScreen(
+            playlistId: state.pathParameters['playlistId'] ?? '',
+          ),
         ),
       ),
       GoRoute(
         path: Routes.mix,
         name: Routes.mixName,
-        builder: (_, state) =>
-            MixScreen(trackId: state.pathParameters['trackId'] ?? ''),
+        pageBuilder: (_, state) => AppPageTransitions.push<void>(
+          key: state.pageKey,
+          child: MixScreen(
+            trackId: state.pathParameters['trackId'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.userPlaylist,
         name: Routes.userPlaylistName,
-        builder: (_, state) => PlaylistDetailScreen(
-          playlistId: state.pathParameters['playlistId'] ?? '',
-          isUserPlaylist: true,
+        pageBuilder: (_, state) => AppPageTransitions.push<void>(
+          key: state.pageKey,
+          child: PlaylistDetailScreen(
+            playlistId: state.pathParameters['playlistId'] ?? '',
+            isUserPlaylist: true,
+          ),
         ),
       ),
       GoRoute(
         path: Routes.player,
         name: Routes.playerName,
-        pageBuilder: (_, state) => CustomTransitionPage<void>(
+        pageBuilder: (_, state) => AppPageTransitions.modalUp<void>(
           key: state.pageKey,
-          fullscreenDialog: true,
-          transitionDuration: const Duration(milliseconds: 320),
           child: const FullPlayerScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(curved),
-              child: FadeTransition(opacity: curved, child: child),
-            );
-          },
         ),
       ),
     ],

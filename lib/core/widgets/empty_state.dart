@@ -28,23 +28,26 @@ class EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 84,
-              height: 84,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: AppColors.glassBorder),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
-              child: Icon(icon, size: 34, color: AppColors.textTertiary),
+              child: Icon(icon, size: 26, color: AppColors.textTertiary),
             ),
-            const SizedBox(height: 20),
-            Text(title, textAlign: TextAlign.center, style: AppTextStyles.title),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.cardTitle,
+            ),
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.subtitle,
+                style: AppTextStyles.cardSubtitle,
               ),
             ],
             if (action != null) ...[
@@ -52,11 +55,11 @@ class EmptyState extends StatelessWidget {
               action!,
             ],
           ],
-        )
-            .animate()
-            .fadeIn(duration: 400.ms)
-            .slideY(begin: 0.06, curve: Curves.easeOutCubic),
-      ),
+        ),
+      )
+          .animate()
+          .fadeIn(duration: 400.ms)
+          .slideY(begin: 0.06, curve: Curves.easeOutCubic),
     );
   }
 }

@@ -21,7 +21,7 @@ class AppConstants {
 
   // --- UI ---
   static const double radius = 20;
-  static const double glassBlur = 6;
+  static const double glassBlur = 20;
   static const double pagePadding = 16;
   static const double sectionGap = 24;
   static const double itemGap = 12;
@@ -33,6 +33,12 @@ class AppConstants {
   /// El contenido de las pantallas lo necesita para no quedar tapado cuando hay
   /// reproducción (por ejemplo, el botón "Nueva" de la biblioteca).
   static const double miniPlayerBottomGap = 8;
+
+  /// Padding inferior de las listas dentro del shell: barra de navegación +
+  /// mini player + margen de respiración (68 + 64 + 8 + 20 = 160). Único
+  /// valor para que todas las pantallas terminen a la misma altura.
+  static const double shellBottomInset =
+      navBarHeight + miniPlayerHeight + miniPlayerBottomGap + 20;
 
   // --- Búsqueda ---
   static const Duration searchDebounce = Duration(milliseconds: 300);

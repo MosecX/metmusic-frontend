@@ -5,14 +5,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../models/album.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/glass_styles.dart';
 
 /// Card de álbum usada en carruseles horizontales y grids.
 class AlbumCard extends StatelessWidget {
   const AlbumCard({
     super.key,
     required this.album,
-    this.width = 152,
+    this.width = 148,
     this.onTap,
   });
 
@@ -26,17 +25,17 @@ class AlbumCard extends StatelessWidget {
       width: width,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(GlassStyles.cardBorderRadius),
+        borderRadius: BorderRadius.circular(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AlbumArtwork(album: album, size: width),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             Text(
               album.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body,
+              style: AppTextStyles.cardTitle,
             ),
             const SizedBox(height: 2),
             Text(
@@ -46,7 +45,7 @@ class AlbumCard extends StatelessWidget {
                   .join(' • '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption,
+              style: AppTextStyles.cardSubtitle,
             ),
           ],
         ),
@@ -55,13 +54,13 @@ class AlbumCard extends StatelessWidget {
   }
 }
 
-/// Artwork cuadrado con borde de vidrio y fallback.
+/// Artwork cuadrado con fallback (radio de arte: 10).
 class AlbumArtwork extends StatelessWidget {
   const AlbumArtwork({
     super.key,
     required this.album,
     required this.size,
-    this.radius = GlassStyles.cardBorderRadius,
+    this.radius = 10,
   });
 
   final Album album;
@@ -75,8 +74,7 @@ class AlbumArtwork extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: AppColors.glassBorder),
-        color: Colors.white.withValues(alpha: 0.04),
+        color: Colors.white.withValues(alpha: 0.05),
       ),
       clipBehavior: Clip.antiAlias,
       child: album.thumbnailUrl.isEmpty

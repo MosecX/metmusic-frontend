@@ -11,7 +11,7 @@ class ArtistCard extends StatefulWidget {
   const ArtistCard({
     super.key,
     required this.artist,
-    this.size = 116,
+    this.size = 108,
     this.onTap,
     this.showName = true,
   });
@@ -53,10 +53,9 @@ class _ArtistCardState extends State<ArtistCard> {
             Container(
               width: widget.size,
               height: widget.size,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: AppColors.glassBorder, width: 1.2),
+                color: AppColors.backgroundAlt,
               ),
               clipBehavior: Clip.antiAlias,
               child: imageUrl.isEmpty
@@ -82,14 +81,13 @@ class _ArtistCardState extends State<ArtistCard> {
                     ),
             ),
             if (widget.showName) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 9),
               Text(
                 widget.artist.name,
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textPrimary),
+                style: AppTextStyles.cardTitle,
               ),
             ],
           ],

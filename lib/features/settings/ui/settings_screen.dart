@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -7,11 +6,10 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../providers/settings_provider.dart';
 
-/// Ajustes: estado de la API, calidad de audio, letras, caché y acerca de.
+/// Ajustes en grupos iOS: servicios, reproducción, apariencia y acerca de.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -26,130 +24,150 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final controller = ref.read(settingsProvider.notifier);
 
     return ListView(
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 180),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: AppConstants.shellBottomInset,
+      ),
       children: [
         const Padding(
-          padding: EdgeInsets.only(top: 16, bottom: 16),
-          child: Text('Ajustes', style: AppTextStyles.headline),
+          padding: EdgeInsets.only(top: 16, bottom: 4),
+          child: Text('Ajustes', style: AppTextStyles.largeTitle),
         ),
 
-        // --- Estado de los servicios ---
-        const _Section(
-          title: 'Estado de los servicios',
-          icon: LucideIcons.server,
-          children: [_ServicesStatus()],
-        ),
-        const SizedBox(height: 16),
+        // --- Servicios ---
+        const _GroupLabel('Servicios'),
+        const _Group(children: [_ServicesStatus()]),
 
-        // --- Calidad ---
-        _Section(
-          title: 'Calidad de audio',
-          icon: LucideIcons.signal,
-          children: [
-            for (final quality in AudioQualityPreference.values)
-              _QualityOption(
-                label: quality.label,
-                selected: quality == settings.audioQuality,
-                onTap: () => controller.setAudioQuality(quality),
-              ),
-            const Text(
-              'Se envía como parámetro al resolver cada stream.',
-              style: AppTextStyles.caption,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // --- Letras ---
-        _Section(
-          title: 'Letras',
-          icon: LucideIcons.captions,
-          children: [
-            const Text(
-              'Elegí cómo se muestran las letras sincronizadas en el '
-              'reproductor.',
-              style: AppTextStyles.caption,
-            ),
-            for (final mode in LyricsMode.values)
-              _QualityOption(
-                label: mode.label,
-                selected: mode == settings.lyricsMode,
-                onTap: () => controller.setLyricsMode(mode),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // --- Tema ---
-        const _Section(
-          title: 'Tema',
-          icon: LucideIcons.moon,
-          children: [
-            Row(
-              children: [
-                Icon(LucideIcons.moon, size: 16, color: AppColors.accent),
-                SizedBox(width: 10),
-                Expanded(
-                  child:
-                      Text('Oscuro siempre activo', style: AppTextStyles.body),
-                ),
-                Text('Único', style: AppTextStyles.caption),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // --- Caché ---
-        _Section(
-          title: 'Caché',
-          icon: LucideIcons.trash2,
-          children: [
-            const Text(
-              'Limpia la caché de metadatos y streams del servidor.',
-              style: AppTextStyles.caption,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _clearCache(controller),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                  side: const BorderSide(color: AppColors.danger),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                icon: const Icon(LucideIcons.trash2, size: 16),
-                label: const Text('Limpiar caché del servidor'),
+        // --- Reproducción ---
+        const _GroupLabel('Reproducción'),
+        _Group(
+          children: _withSeparators([
+            _SettingsRow(
+              icon: LucideIcons.volume2,
+              badge: const Color(0xFF0A84FF),
+              label: 'Calidad de audio',
+              value: settings.audioQuality.label,
+              chevron: true,
+              onTap: () => _pickOption(
+                title: 'Calidad de audio',
+                options: AudioQualityPreference.values,
+                labelOf: (q) => q.label,
+                current: settings.audioQuality,
+                onPick: controller.setAudioQuality,
               ),
             ),
-          ],
+            _SettingsRow(
+              icon: LucideIcons.captions,
+              badge: const Color(0xFFFF375F),
+              label: 'Letras',
+              value: settings.lyricsMode.label,
+              chevron: true,
+              onTap: () => _pickOption(
+                title: 'Letras',
+                options: LyricsMode.values,
+                labelOf: (m) => m.label,
+                current: settings.lyricsMode,
+                onPick: controller.setLyricsMode,
+              ),
+            ),
+          ]),
         ),
-        const SizedBox(height: 16),
+
+        // --- Apariencia ---
+        const _GroupLabel('Apariencia'),
+        _Group(
+          children: _withSeparators([
+            const _SettingsRow(
+              icon: LucideIcons.slidersHorizontal,
+              badge: Color(0xFF636366),
+              label: 'Tema',
+              value: 'Oscuro',
+            ),
+            _SettingsRow(
+              icon: LucideIcons.trash2,
+              badge: const Color(0xFFFF9F0A),
+              label: 'Limpiar caché del servidor',
+              onTap: () => _clearCache(controller),
+            ),
+          ]),
+        ),
 
         // --- Acerca de ---
-        _Section(
-          title: 'Acerca de',
-          icon: LucideIcons.info,
-          children: [
-            const _InfoRow(label: 'Aplicación', value: AppConstants.appName),
-            const _InfoRow(label: 'Versión', value: AppConstants.appVersion),
-            _InfoRow(
+        const _GroupLabel('Acerca de'),
+        _Group(
+          children: _withSeparators([
+            const _SettingsRow(
+              icon: LucideIcons.info,
+              badge: Color(0xFF34C759),
+              label: 'Aplicación',
+              value: AppConstants.appName,
+            ),
+            const _SettingsRow(
+              icon: LucideIcons.gitBranch,
+              badge: Color(0xFF636366),
+              label: 'Versión',
+              value: AppConstants.appVersion,
+            ),
+            _SettingsRow(
+              icon: LucideIcons.server,
+              badge: const Color(0xFF5E5CE6),
               label: 'Backend',
               value: settings.baseUrl.replaceFirst('https://', ''),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Cliente personal de música. Metadatos vía Tidal, streaming de alta '
-              'calidad vía Qobuz, resueltos por un backend autohospedado.',
-              style: AppTextStyles.caption,
-            ),
-          ],
+          ]),
+        ),
+
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Text(
+            'Cliente personal de música. Metadatos vía Tidal, streaming de alta '
+            'calidad vía Qobuz, resueltos por un backend autohospedado.',
+            style: AppTextStyles.cardSubtitle,
+          ),
         ),
       ],
+    );
+  }
+
+  Future<void> _pickOption<T>({
+    required String title,
+    required List<T> options,
+    required String Function(T) labelOf,
+    required T current,
+    required ValueChanged<T> onPick,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: RadioGroup<T>(
+          groupValue: current,
+          onChanged: (value) {
+            if (value == null) return;
+            onPick(value);
+            Navigator.of(context).pop();
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in options)
+                RadioListTile<T>(
+                  value: option,
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(labelOf(option), style: AppTextStyles.body),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -175,193 +193,227 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
+// ---------------------------------------------------------------------------
+// Grupos iOS
+// ---------------------------------------------------------------------------
 
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
+/// Etiqueta de sección (`SERVICIOS`, `REPRODUCCIÓN`, …).
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.text);
 
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppColors.accent),
-              const SizedBox(width: 8),
-              Text(title, style: AppTextStyles.title),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ...children,
-        ],
-      ),
-    ).animate().fadeIn(duration: 250.ms);
-  }
-}
-
-class _QualityOption extends StatelessWidget {
-  const _QualityOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(
-              selected ? LucideIcons.check : LucideIcons.circle,
-              size: 18,
-              color: selected ? AppColors.accent : AppColors.textTertiary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: AppTextStyles.body.copyWith(
-                color:
-                    selected ? AppColors.textPrimary : AppColors.textSecondary,
-              ),
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 26, 16, 8),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.6,
+          color: AppColors.textSecondary,
         ),
       ),
     );
   }
 }
 
-/// Estado de los servicios del backend (`GET /api/health`): resumen general,
-/// cada servicio con su estado/latencia/detalle y un botón para refrescar.
+/// Contenedor de filas (`#1c1c1e`, radio 13).
+class _Group extends StatelessWidget {
+  const _Group({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.backgroundAlt,
+        borderRadius: BorderRadius.all(Radius.circular(13)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+}
+
+/// Intercala separadores inset (54px) entre filas de un grupo.
+List<Widget> _withSeparators(List<Widget> rows) {
+  return [
+    for (var i = 0; i < rows.length; i++) ...[
+      if (i > 0) const Divider(indent: 54),
+      rows[i],
+    ],
+  ];
+}
+
+/// Fila de ajustes: badge de color + etiqueta + valor/chevron.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
+    required this.badge,
+    required this.label,
+    this.value,
+    this.chevron = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color badge;
+  final String label;
+  final String? value;
+  final bool chevron;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: badge,
+                  borderRadius: BorderRadius.circular(7.5),
+                ),
+                child: Icon(icon, size: 18, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (value != null) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+              if (chevron) ...[
+                const SizedBox(width: 6),
+                const Icon(
+                  LucideIcons.chevronRight,
+                  size: 16,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Estado de los servicios del backend (`GET /api/health`)
+// ---------------------------------------------------------------------------
+
 class _ServicesStatus extends ConsumerWidget {
   const _ServicesStatus();
+
+  static const List<Color> _badges = [
+    Color(0xFF34C759),
+    Color(0xFF0A84FF),
+    Color(0xFFFF9F0A),
+    Color(0xFF5E5CE6),
+    Color(0xFFFF375F),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final health = ref.watch(apiHealthProvider);
     return health.when(
-      loading: () => const Row(
-        children: [
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          SizedBox(width: 10),
-          Text('Consultando el estado…', style: AppTextStyles.caption),
-        ],
+      loading: () => const _PlainRow(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Consultando el estado…', style: AppTextStyles.cardSubtitle),
+          ],
+        ),
       ),
       error: (error, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _ResultRow(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _withSeparators([
+          const _SettingsRow(
             icon: LucideIcons.alertTriangle,
-            color: AppColors.danger,
-            text: 'No se pudo consultar el estado del backend.',
+            badge: Color(0xFFFF453A),
+            label: 'No se pudo consultar el estado del backend.',
           ),
-          const SizedBox(height: 4),
-          TextButton.icon(
-            onPressed: () => ref.invalidate(apiHealthProvider),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-            icon: const Icon(LucideIcons.refreshCw, size: 15),
-            label: const Text('Reintentar'),
+          _SettingsRow(
+            icon: LucideIcons.refreshCw,
+            badge: const Color(0xFF0A84FF),
+            label: 'Reintentar',
+            onTap: () => ref.invalidate(apiHealthProvider),
           ),
-        ],
+        ]),
       ),
       data: (status) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ResultRow(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _withSeparators([
+          _SettingsRow(
             icon: status.ok ? LucideIcons.check : LucideIcons.alertTriangle,
-            color: status.ok ? AppColors.accent : AppColors.danger,
-            text: status.summary,
+            badge: status.ok
+                ? const Color(0xFF34C759)
+                : const Color(0xFFFF453A),
+            label: status.summary,
+            value: status.uptimeSeconds != null
+                ? 'Uptime ${_formatUptime(status.uptimeSeconds!)}'
+                : null,
           ),
-          if (status.uptimeSeconds != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 26, top: 2),
-              child: Text(
-                'Uptime ${_formatUptime(status.uptimeSeconds!)}',
-                style: AppTextStyles.caption,
-              ),
+          for (var i = 0; i < status.services.length; i++)
+            _SettingsRow(
+              icon: status.services[i].ok
+                  ? LucideIcons.check
+                  : LucideIcons.x,
+              badge: _badges[i % _badges.length],
+              label: status.services[i].name,
+              value: [
+                if (status.services[i].detail != null)
+                  status.services[i].detail!,
+                if (status.services[i].latencyMs != null)
+                  '${status.services[i].latencyMs!.round()} ms',
+              ].join(' · '),
             ),
-          if (status.services.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            for (final service in status.services)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          service.ok ? LucideIcons.check : LucideIcons.x,
-                          size: 14,
-                          color:
-                              service.ok ? AppColors.accent : AppColors.danger,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            service.name,
-                            style: AppTextStyles.body.copyWith(
-                              fontSize: 13.5,
-                              color: service.ok
-                                  ? AppColors.textPrimary
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        if (service.latencyMs != null)
-                          Text(
-                            '${service.latencyMs!.toStringAsFixed(0)} ms',
-                            style: AppTextStyles.caption,
-                          ),
-                      ],
-                    ),
-                    if (service.detail != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 22, top: 2),
-                        child: Text(
-                          service.detail!,
-                          style: AppTextStyles.caption,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-          const SizedBox(height: 6),
-          TextButton.icon(
-            onPressed: () => ref.invalidate(apiHealthProvider),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-            icon: const Icon(LucideIcons.refreshCw, size: 15),
-            label: const Text('Actualizar'),
+          _SettingsRow(
+            icon: LucideIcons.refreshCw,
+            badge: const Color(0xFF0A84FF),
+            label: 'Actualizar estado',
+            onTap: () => ref.invalidate(apiHealthProvider),
           ),
-        ],
+        ]),
       ),
     );
   }
@@ -375,64 +427,17 @@ class _ServicesStatus extends ConsumerWidget {
   }
 }
 
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({
-    required this.icon,
-    required this.color,
-    required this.text,
-  });
+/// Fila simple sin badge (loading).
+class _PlainRow extends StatelessWidget {
+  const _PlainRow({required this.child});
 
-  final IconData icon;
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(label, style: AppTextStyles.caption),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body,
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: child,
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../network/api_exception.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'glass_card.dart';
 
 /// Estado de error reutilizable, con mensaje legible y botón de reintento.
 class ErrorState extends StatelessWidget {
@@ -47,55 +46,52 @@ class ErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: GlassCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _iconFor(error),
-                size: 40,
-                color: AppColors.danger,
-              ),
-              const SizedBox(height: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _iconFor(error),
+              size: 34,
+              color: AppColors.danger,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _message,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.title,
+            ),
+            if (!compact) ...[
+              const SizedBox(height: 8),
               Text(
-                _message,
+                _detail,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.cardSubtitle,
               ),
-              if (!compact) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _detail,
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption,
-                ),
-              ],
-              if (onRetry != null && _canRetry) ...[
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: onRetry,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(LucideIcons.refreshCw, size: 16),
-                  label: const Text('Reintentar'),
-                ),
-              ],
             ],
-          ),
-        )
-            .animate()
-            .fadeIn(duration: 300.ms)
-            .slideY(begin: 0.05, curve: Curves.easeOutCubic),
-      ),
+            if (onRetry != null && _canRetry) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(LucideIcons.refreshCw, size: 16),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          ],
+        ),
+      )
+          .animate()
+          .fadeIn(duration: 300.ms)
+          .slideY(begin: 0.05, curve: Curves.easeOutCubic),
     );
   }
 

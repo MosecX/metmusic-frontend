@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/artist.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,13 +8,13 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/album_card.dart';
 import '../../../core/widgets/collapsible_header.dart';
 import '../../../core/widgets/error_state.dart';
-import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
 import '../../../navigation/main_shell.dart';
 import '../../../navigation/routes.dart';
 import '../../player/providers/playback_actions.dart';
+import '../../player/providers/player_provider.dart';
 import '../../player/ui/track_context_menu.dart';
 import '../providers/artist_provider.dart';
 
@@ -73,84 +72,48 @@ class _Content extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topTracks = artist.topTracks;
+    final playerState = ref.watch(playerProvider);
 
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          expandedHeight: 320,
+        const SliverAppBar(
           pinned: true,
           backgroundColor: AppColors.background,
-          leading: const GlassBackButton(),
-          flexibleSpace: FlexibleSpaceBar(
-            collapseMode: CollapseMode.parallax,
-            background: CollapsibleHeader(
-              imageUrl: artist.imageUrl,
-              title: artist.name,
-              meta: 'Artista',
-              isRound: true,
-              imageSize: 140,
-              subtitle: [
-                if (artist.albums.isNotEmpty) '${artist.albums.length} álbumes',
-                if (topTracks.isNotEmpty) '${topTracks.length} canciones',
-              ].join(' • '),
-            ),
+          surfaceTintColor: Colors.transparent,
+          leading: GlassBackButton(),
+          centerTitle: true,
+          title: Text(
+            'Artista',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed:
-                        topTracks.isEmpty ? null : () => ref.playAll(topTracks),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.play, size: 18),
-                    label: const Text('Reproducir'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: topTracks.isEmpty
-                        ? null
-                        : () => ref.playAll(topTracks, shuffled: true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.shuffle, size: 18),
-                    label: const Text('Aleatorio'),
-                  ),
-                ),
-              ],
-            ),
+          child: DetailHeader(
+            imageUrl: artist.imageUrl,
+            title: artist.name,
+            isRound: true,
+            meta: [
+              if (artist.albums.isNotEmpty) '${artist.albums.length} álbumes',
+              if (topTracks.isNotEmpty) '${topTracks.length} canciones',
+            ].join(' • '),
+            actionsEnabled: topTracks.isNotEmpty,
+            onShuffle: topTracks.isEmpty
+                ? null
+                : () => ref.playAll(topTracks, shuffled: true),
+            onPlay: topTracks.isEmpty
+                ? null
+                : () => ref.playAll(topTracks),
           ),
         ),
         if (artist.bio != null && artist.bio!.trim().isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: GlassCard(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  artist.bio!,
-                  maxLines: 5,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyLight,
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              child: Text(
+                artist.bio!,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyLight,
               ),
             ),
           ),
@@ -159,30 +122,30 @@ class _Content extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SectionHeader(title: 'Populares', icon: LucideIcons.zap),
+                const SectionHeader(title: 'Populares'),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GlassCard(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < topTracks.length; i++)
-                          TrackRow(
-                            track: topTracks[i],
-                            index: i + 1,
-                            showArtwork: false,
-                            showAlbum: true,
-                            onTap: () => ref.playTrack(
-                              topTracks[i],
-                              context: topTracks,
-                              index: i,
-                            ),
-                            onLongPress: () =>
-                                openTrackContextMenu(context, ref, topTracks[i]),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < topTracks.length; i++)
+                        TrackRow(
+                          track: topTracks[i],
+                          index: i + 1,
+                          showArtwork: false,
+                          showAlbum: true,
+                          isActive:
+                              playerState.track?.trackId ==
+                                  topTracks[i].trackId,
+                          isPlaying: playerState.playing,
+                          onTap: () => ref.playTrack(
+                            topTracks[i],
+                            context: topTracks,
+                            index: i,
                           ),
-                      ],
-                    ),
+                          onLongPress: () =>
+                              openTrackContextMenu(context, ref, topTracks[i]),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -193,14 +156,14 @@ class _Content extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SectionHeader(title: 'Álbumes', icon: LucideIcons.disc3),
+                const SectionHeader(title: 'Álbumes'),
                 SizedBox(
-                  height: 224,
+                  height: 216,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: artist.albums.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    separatorBuilder: (_, __) => const SizedBox(width: 14),
                     itemBuilder: (context, index) => AlbumCard(
                       album: artist.albums[index],
                       onTap: () => context

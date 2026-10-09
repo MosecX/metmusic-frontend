@@ -35,13 +35,16 @@ class MiniPlayer extends ConsumerWidget {
             children: [
               SizedBox(
                 height: AppConstants.miniPlayerHeight,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                      child: Row(
                     children: [
                       PlayerArtwork(
                         url: state.artworkUrl,
-                        size: 44,
+                        size: 46,
+                        radius: 10,
                         heroTag: AppConstants.heroArtworkTag,
                       ),
                       const SizedBox(width: 12),
@@ -54,14 +57,20 @@ class MiniPlayer extends ConsumerWidget {
                               state.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.body,
+                              style: AppTextStyles.body.copyWith(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               state.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption,
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -76,38 +85,56 @@ class MiniPlayer extends ConsumerWidget {
                           ),
                         )
                       else
-                        IconButton(
-                          tooltip: state.playing ? 'Pausar' : 'Reproducir',
-                          onPressed: controller.togglePlayPause,
-                          icon: Icon(
-                            state.playing ? LucideIcons.pause : LucideIcons.play,
-                            size: 22,
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: IconButton(
+                            tooltip: state.playing ? 'Pausar' : 'Reproducir',
+                            padding: EdgeInsets.zero,
+                            onPressed: controller.togglePlayPause,
+                            icon: Icon(
+                              state.playing
+                                  ? LucideIcons.pause
+                                  : LucideIcons.play,
+                              size: 22,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: IconButton(
+                          tooltip: 'Siguiente',
+                          padding: EdgeInsets.zero,
+                          onPressed: controller.next,
+                          icon: const Icon(
+                            LucideIcons.skipForward,
+                            size: 21,
                             color: AppColors.textPrimary,
                           ),
                         ),
-                      IconButton(
-                        tooltip: 'Siguiente',
-                        onPressed: controller.next,
-                        icon: const Icon(
-                          LucideIcons.skipForward,
-                          size: 20,
-                          color: AppColors.textPrimary,
+                      ),
+                        ],
+                      ),
+                    ),
+                    // Progreso: barrita fina insetada (boceto: inset 14, alto 2.5).
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 5,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: state.progress,
+                          minHeight: 2.5,
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          valueColor:
+                              const AlwaysStoppedAnimation(AppColors.accent),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 1),
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(20),
-                ),
-                child: LinearProgressIndicator(
-                  value: state.progress,
-                  minHeight: 2,
-                  backgroundColor: Colors.white.withValues(alpha: 0.08),
-                  valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                    ),
+                  ],
                 ),
               ),
             ],

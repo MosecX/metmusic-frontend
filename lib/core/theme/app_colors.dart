@@ -5,30 +5,23 @@ class AppColors {
   AppColors._();
 
   // --- Fondo ---
-  /// Fondo base negro profundo.
-  static const Color background = Color(0xFF0A0A0F);
+  /// Fondo base negro puro (Apple Music dark).
+  static const Color background = Color(0xFF000000);
 
-  /// Variante ligeramente más clara para capas.
-  static const Color backgroundAlt = Color(0xFF12121A);
+  /// Variante elevada para capas (grupos de ajustes, `#1c1c1e`).
+  static const Color backgroundAlt = Color(0xFF1C1C1E);
 
-  /// Gradiente de fondo global (tintes de color sobre negro).
+  /// Fondo global plano (el boceto usa negro puro, sin tintes).
   static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF0A0A0F),
-      Color(0xFF0D1014),
-      Color(0xFF080A0E),
-    ],
-    stops: [0.0, 0.55, 1.0],
+    colors: [background, background],
   );
 
   // --- Acentos ---
-  /// Verde neón principal.
-  static const Color accent = Color(0xFF1DB954);
+  /// Morado principal (Púrpura Apple, #BF5AF2).
+  static const Color accent = Color(0xFFBF5AF2);
 
-  /// Tinte secundario para degradados.
-  static const Color accentSecondary = Color(0xFF14B8A6);
+  /// Tinte secundario para degradados (violeta #7C4DFF).
+  static const Color accentSecondary = Color(0xFF7C4DFF);
 
   /// Degradado de acento por defecto.
   static const LinearGradient accentGradient = LinearGradient(
@@ -38,25 +31,42 @@ class AppColors {
   );
 
   // --- Texto ---
+  /// Blanco puro (títulos).
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xB3FFFFFF); // 70%
-  static const Color textTertiary = Color(0x80FFFFFF); // 50%
-  static const Color textDisabled = Color(0x4DFFFFFF); // 30%
+
+  /// Secundario: `rgba(235, 235, 245, 0.6)` (label secundario iOS).
+  static const Color textSecondary = Color(0x99EBEBF5);
+
+  /// Terciario: `rgba(235, 235, 245, 0.3)` (label terciario iOS).
+  static const Color textTertiary = Color(0x4DEBEBF5);
+
+  /// Deshabilitado: 30% blanco.
+  static const Color textDisabled = Color(0x4DFFFFFF);
 
   // --- Glass ---
-  /// Borde de vidrio (10% blanco).
-  static const Color glassBorder = Color(0x1AFFFFFF);
+  /// Borde de vidrio (`rgba(255, 255, 255, 0.14)`).
+  static const Color glassBorder = Color(0x24FFFFFF);
 
-  /// Relleno del estilo Glass 1 (15% blanco).
-  static const Color glassFill = Color(0x26FFFFFF);
+  /// Relleno de vidrio (`rgba(255, 255, 255, 0.1)`).
+  static const Color glassFill = Color(0x1AFFFFFF);
 
   /// Relleno del estilo Glass 2 (transparente).
   static const Color glassFillTransparent = Color(0x00FFFFFF);
 
+  // --- Superficies ---
+  /// Separadores (`rgba(255, 255, 255, 0.08)`).
+  static const Color separator = Color(0x14FFFFFF);
+
+  /// Relleno iOS de campos/segmentados (`rgba(118, 118, 128, 0.24)`).
+  static const Color controlFill = Color(0x3D767680);
+
   // --- Estados ---
   static const Color danger = Color(0xFFE5484D);
   static const Color warning = Color(0xFFF5A524);
-  static const Color success = Color(0xFF1DB954);
+
+  /// Verde de éxito (`#34c759`, systemGreen iOS).
+  static const Color success = Color(0xFF34C759);
+
   static const Color info = Color(0xFF3B82F6);
 
   /// Genera un degradado oscuro derivado de un color dominante (artwork).

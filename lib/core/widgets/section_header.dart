@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
-/// Encabezado de sección con título, subtítulo y acción opcional.
+/// Encabezado de sección (`22 / 700`) con subtítulo y acción opcional.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -12,15 +11,13 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onActionTap,
-    this.icon,
-    this.padding = const EdgeInsets.fromLTRB(16, 0, 16, 12),
+    this.padding = const EdgeInsets.fromLTRB(16, 26, 16, 12),
   });
 
   final String title;
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onActionTap;
-  final IconData? icon;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -30,18 +27,14 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18, color: AppColors.accent),
-            const SizedBox(width: 8),
-          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.title),
+                Text(title, style: AppTextStyles.sectionTitle),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(subtitle!, style: AppTextStyles.caption),
+                  const SizedBox(height: 4),
+                  Text(subtitle!, style: AppTextStyles.cardSubtitle),
                 ],
               ],
             ),
@@ -50,21 +43,18 @@ class SectionHeader extends StatelessWidget {
             TextButton(
               onPressed: onActionTap,
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                foregroundColor: AppColors.accent,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    actionLabel ?? 'Ver todo',
-                    style: AppTextStyles.label,
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(LucideIcons.chevronRight, size: 14),
-                ],
+              child: Text(
+                actionLabel ?? 'Ver todo',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.accent,
+                ),
               ),
             ),
         ],

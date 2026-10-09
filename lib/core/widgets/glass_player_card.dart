@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/glass_styles.dart';
 
-/// Capa de vidrio estilo **Glass 1**: relleno blanco 15% + blur + borde.
+/// Capa de vidrio estilo **Glass 1**: relleno blanco 10% + blur + borde.
 ///
 /// Se usa EXCLUSIVAMENTE para el MiniPlayer, el FullPlayerScreen y el
 /// QueueSheet.

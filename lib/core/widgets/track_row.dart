@@ -8,7 +8,10 @@ import '../theme/app_text_styles.dart';
 import '../utils/duration_formatter.dart';
 
 /// Fila de canción reutilizable (búsqueda, álbum, historial, favoritos).
-class TrackRow extends StatelessWidget {
+///
+/// Estilo boceto: `número/EQ · portada 46 · título+artista · duración`,
+/// filas planas sobre el fondo (sin card).
+class TrackRow extends StatefulWidget {
   const TrackRow({
     super.key,
     required this.track,
@@ -16,22 +19,20 @@ class TrackRow extends StatelessWidget {
     this.isActive = false,
     this.isPlaying = false,
     this.onTap,
-    this.onPlayTap,
     this.onLongPress,
     this.trailing,
     this.showAlbum = false,
     this.showArtwork = true,
-    this.padding = const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+    this.padding = EdgeInsets.zero,
   });
 
   final Track track;
 
-  /// Número de pista mostrado a la izquierda (si no hay artwork).
+  /// Número de pista mostrado a la izquierda (siempre que se indique).
   final int? index;
   final bool isActive;
   final bool isPlaying;
   final VoidCallback? onTap;
-  final VoidCallback? onPlayTap;
 
   /// Abre el menú de contexto de la pista (long-press).
   final VoidCallback? onLongPress;
@@ -41,29 +42,46 @@ class TrackRow extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
+  State<TrackRow> createState() => _TrackRowState();
+}
+
+class _TrackRowState extends State<TrackRow> {
+  @override
   Widget build(BuildContext context) {
-    final accent = isActive ? AppColors.accent : AppColors.textPrimary;
+    final track = widget.track;
+    final accent = widget.isActive ? AppColors.accent : AppColors.textPrimary;
+    final showEq = widget.isActive && widget.isPlaying;
+
     return InkWell(
-      onTap: onTap,
-      onLongPress: onLongPress,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: padding,
+        padding: widget.padding,
         child: Row(
           children: [
-            if (showArtwork)
-              _Artwork(track: track, isActive: isActive)
-            else if (index != null)
+            if (widget.index != null) ...[
               SizedBox(
-                width: 32,
+                width: 22,
                 child: Center(
-                  child: Text(
-                    '$index',
-                    style: AppTextStyles.caption.copyWith(color: accent),
-                  ),
+                  child: showEq
+                      ? const _EqBars()
+                      : Text(
+                          '${widget.index}',
+                          style: AppTextStyles.rowTrailing.copyWith(
+                            color: widget.isActive
+                                ? AppColors.accent
+                                : AppColors.textTertiary,
+                          ),
+                        ),
                 ),
               ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 13),
+            ],
+            if (widget.showArtwork) ...[
+              _Artwork(track: track),
+              const SizedBox(width: 13),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +94,7 @@ class TrackRow extends StatelessWidget {
                           track.displayTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.body.copyWith(color: accent),
+                          style: AppTextStyles.rowTitle.copyWith(color: accent),
                         ),
                       ),
                       if (track.explicit) ...[
@@ -93,43 +111,33 @@ class TrackRow extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 1),
                   Text(
-                    showAlbum && track.album != null
+                    widget.showAlbum && track.album != null
                         ? '${track.artist ?? ''} • ${track.album}'
                         : (track.artist ?? 'Desconocido'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption,
+                    style: AppTextStyles.rowSubtitle,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            trailing ??
-                (onPlayTap != null
-                    ? IconButton(
-                        onPressed: onPlayTap,
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          isActive && isPlaying
-                              ? LucideIcons.pause
-                              : LucideIcons.play,
-                          size: 18,
-                          color: isActive
-                              ? AppColors.accent
-                              : AppColors.textSecondary,
-                        ),
-                      )
-                    : Text(
-                        DurationFormatter.format(track.duration),
-                        style: AppTextStyles.caption,
-                      )),
-            if (trailing != null && track.durationSeconds > 0) ...[
+            if (widget.trailing != null && track.durationSeconds > 0) ...[
               const SizedBox(width: 8),
               Text(
                 DurationFormatter.format(track.duration),
-                style: AppTextStyles.caption,
+                style: AppTextStyles.rowTrailing,
+              ),
+            ],
+            if (widget.trailing != null) ...[
+              const SizedBox(width: 4),
+              widget.trailing!,
+            ] else if (track.durationSeconds > 0) ...[
+              const SizedBox(width: 8),
+              Text(
+                DurationFormatter.format(track.duration),
+                style: AppTextStyles.rowTrailing,
               ),
             ],
           ],
@@ -139,38 +147,93 @@ class TrackRow extends StatelessWidget {
   }
 }
 
+/// Ecualizador animado de 3 barras para la fila en reproducción.
+class _EqBars extends StatefulWidget {
+  const _EqBars();
+
+  @override
+  State<_EqBars> createState() => _EqBarsState();
+}
+
+class _EqBarsState extends State<_EqBars> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  // Alturas base (60% / 100% / 40% de 14px, como el boceto).
+  static const List<double> _heights = [8.4, 14, 5.6];
+  static const List<Interval> _phases = [
+    Interval(0.0, 0.5, curve: Curves.easeInOut),
+    Interval(0.3, 0.8, curve: Curves.easeInOut),
+    Interval(0.5, 1.0, curve: Curves.easeInOut),
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 16,
+      height: 14,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < _heights.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: Transform.scale(
+                  scaleY: 0.4 + 0.6 * _phases[i].transform(_controller.value),
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: 3,
+                    height: _heights[i],
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Artwork extends StatelessWidget {
-  const _Artwork({required this.track, required this.isActive});
+  const _Artwork({required this.track});
 
   final Track track;
-  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
     final url = track.listThumbnailUrl;
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive ? AppColors.accent : AppColors.glassBorder,
-          width: isActive ? 1.4 : 1,
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: url.isEmpty
+            ? const _ArtworkFallback()
+            : CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                fadeInDuration: Duration.zero,
+                fadeOutDuration: Duration.zero,
+                filterQuality: FilterQuality.medium,
+                memCacheWidth: 160,
+                placeholder: (_, __) => const _ArtworkFallback(),
+                errorWidget: (_, __, ___) => const _ArtworkFallback(),
+              ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: url.isEmpty
-          ? const _ArtworkFallback()
-          : CachedNetworkImage(
-              imageUrl: url,
-              fit: BoxFit.cover,
-              fadeInDuration: Duration.zero,
-              fadeOutDuration: Duration.zero,
-              filterQuality: FilterQuality.medium,
-              memCacheWidth: 160,
-              placeholder: (_, __) => const _ArtworkFallback(),
-              errorWidget: (_, __, ___) => const _ArtworkFallback(),
-            ),
     );
   }
 }

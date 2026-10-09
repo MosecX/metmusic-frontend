@@ -5,14 +5,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../models/playlist.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/glass_styles.dart';
 
 /// Card de playlist (editorial o de usuario).
 class PlaylistCard extends StatelessWidget {
   const PlaylistCard({
     super.key,
     required this.playlist,
-    this.width = 152,
+    this.width = 148,
     this.onTap,
     this.onLongPress,
   });
@@ -29,24 +28,24 @@ class PlaylistCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(GlassStyles.cardBorderRadius),
+        borderRadius: BorderRadius.circular(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PlaylistCover(url: playlist.thumbnailUrl, size: width),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             Text(
               playlist.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body,
+              style: AppTextStyles.cardTitle,
             ),
             const SizedBox(height: 2),
             Text(
               _subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption,
+              style: AppTextStyles.cardSubtitle,
             ),
           ],
         ),
@@ -64,7 +63,7 @@ class PlaylistCard extends StatelessWidget {
   }
 }
 
-/// Portada cuadrada con borde de vidrio.
+/// Portada cuadrada con radio de arte (10).
 class PlaylistCover extends StatelessWidget {
   const PlaylistCover({super.key, required this.url, required this.size});
 
@@ -77,9 +76,8 @@ class PlaylistCover extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(GlassStyles.cardBorderRadius),
-        border: Border.all(color: AppColors.glassBorder),
-        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.white.withValues(alpha: 0.05),
       ),
       clipBehavior: Clip.antiAlias,
       child: url.isEmpty

@@ -1,9 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/artist.dart';
 import '../../../core/models/explore.dart';
@@ -68,7 +70,7 @@ class _HomeContent extends ConsumerWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 12, bottom: 160),
+      padding: const EdgeInsets.only(top: 12, bottom: AppConstants.shellBottomInset),
       children: [
         _Greeting(),
         const SizedBox(height: 16),
@@ -92,23 +94,21 @@ class _HomeContent extends ConsumerWidget {
           ),
         if (data.recent.isNotEmpty) ...[
           _RecentSection(entries: data.recent),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
         ],
         if (data.newReleases.isNotEmpty) ...[
           const SectionHeader(
             title: 'Novedades',
-            icon: LucideIcons.disc3,
           ),
           _AlbumCarousel(albums: data.newReleases),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
         ],
         if (data.charts.isNotEmpty) ...[
           const SectionHeader(
             title: 'Top canciones',
-            icon: LucideIcons.zap,
           ),
-          _TrackListCard(tracks: data.charts),
-          const SizedBox(height: 24),
+          _TrackListCard(tracks: data.charts, showIndex: true),
+          const SizedBox(height: 8),
         ],
         ..._exploreSections(context, ref),
       ],
@@ -136,8 +136,7 @@ class _HomeContent extends ConsumerWidget {
           break;
         case ExploreSectionType.tracks:
           widgets.add(_TrackListCard(tracks: section.tracks));
-          break;
-        case ExploreSectionType.playlists:
+          break;        case ExploreSectionType.playlists:
           widgets.add(_PlaylistCarousel(playlists: section.playlists));
           break;
         case ExploreSectionType.artists:
@@ -146,7 +145,7 @@ class _HomeContent extends ConsumerWidget {
         case ExploreSectionType.unknown:
           break;
       }
-      widgets.add(const SizedBox(height: 24));
+      widgets.add(const SizedBox(height: 8));
     }
     return widgets;
   }
@@ -160,20 +159,20 @@ class _Greeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
-    final (text, emoji) = switch (hour) {
-      >= 6 && < 12 => ('Buenos días', '☀️'),
-      >= 12 && < 20 => ('Buenas tardes', '🌤'),
-      _ => ('Buenas noches', '🌙'),
+    final text = switch (hour) {
+      >= 6 && < 12 => 'Buenos días',
+      >= 12 && < 20 => 'Buenas tardes',
+      _ => 'Buenas noches',
     };
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$text $emoji', style: AppTextStyles.headline),
+          Text(text, style: AppTextStyles.subtitle),
           const SizedBox(height: 4),
-          const Text('¿Qué querés escuchar hoy?', style: AppTextStyles.subtitle),
+          const Text('Inicio', style: AppTextStyles.largeTitle),
         ],
       ),
     ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.1, end: 0);
@@ -223,13 +222,16 @@ class _Chip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        fill: active ? AppColors.accent.withValues(alpha: 0.18) : null,
+        borderRadius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        fill: active ? Colors.white : AppColors.glassFill,
         onTap: onTap,
         child: Text(
           label,
-          style: AppTextStyles.button.copyWith(
-            color: active ? AppColors.accent : AppColors.textSecondary,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: active ? Colors.black : AppColors.textPrimary,
           ),
         ),
       ),
@@ -282,31 +284,90 @@ class _RecentSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Escuchado recientemente',
-          icon: LucideIcons.history,
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Column(
-              children: [
-                for (var i = 0; i < tracks.length; i++)
-                  TrackRow(
-                    track: tracks[i],
-                    onTap: () =>
-                        ref.playTrack(tracks[i], context: tracks, index: i),
-                    onPlayTap: () =>
-                        ref.playTrack(tracks[i], context: tracks, index: i),
-                    onLongPress: () =>
-                        openTrackContextMenu(context, ref, tracks[i]),
-                  ),
-              ],
+        const SectionHeader(title: 'Recientes'),
+        SizedBox(
+          height: 216,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: tracks.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) => _TrackCard(
+              track: tracks[index],
+              onTap: () =>
+                  ref.playTrack(tracks[index], context: tracks, index: index),
+              onLongPress: () =>
+                  openTrackContextMenu(context, ref, tracks[index]),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Card de canción (carrusel "Recientes", estilo boceto: arte 148 + título).
+class _TrackCard extends StatelessWidget {
+  const _TrackCard({
+    required this.track,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  final Track track;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = track.listThumbnailUrl;
+    return SizedBox(
+      width: 148,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 148,
+                height: 148,
+                child: url.isEmpty
+                    ? const ArtworkPlaceholder(iconSize: 36)
+                    : CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                        fadeInDuration: Duration.zero,
+                        fadeOutDuration: Duration.zero,
+                        filterQuality: FilterQuality.medium,
+                        memCacheWidth: 300,
+                        placeholder: (_, __) =>
+                            const ArtworkPlaceholder(iconSize: 36),
+                        errorWidget: (_, __, ___) =>
+                            const ArtworkPlaceholder(iconSize: 36),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              track.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.cardTitle,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              track.artist ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.cardSubtitle,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -319,12 +380,12 @@ class _AlbumCarousel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
-      height: 224,
+      height: 216,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: albums.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final album = albums[index];
           return AlbumCard(
@@ -345,12 +406,12 @@ class _PlaylistCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 224,
+      height: 216,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: playlists.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final playlist = playlists[index];
           return PlaylistCard(
@@ -371,17 +432,17 @@ class _ArtistCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 178,
+      height: 164,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: artists.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final artist = artists[index];
           return ArtistCard(
             artist: artist,
-            size: 110,
+            size: 108,
             onTap: () => context.push(Routes.artistPath(artist.artistId)),
           );
         },
@@ -391,9 +452,10 @@ class _ArtistCarousel extends StatelessWidget {
 }
 
 class _TrackListCard extends ConsumerWidget {
-  const _TrackListCard({required this.tracks});
+  const _TrackListCard({required this.tracks, this.showIndex = false});
 
   final List<Track> tracks;
+  final bool showIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -402,23 +464,19 @@ class _TrackListCard extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          children: [
-            for (var i = 0; i < tracks.length; i++)
-              TrackRow(
-                track: tracks[i],
-                isActive: tracks[i].trackId == currentId,
-                isPlaying: playing,
-                onTap: () => ref.playTrack(tracks[i], context: tracks, index: i),
-                onPlayTap: () =>
-                    ref.playTrack(tracks[i], context: tracks, index: i),
-                onLongPress: () =>
-                    openTrackContextMenu(context, ref, tracks[i]),
-              ),
-          ],
-        ),
+      child: Column(
+        children: [
+          for (var i = 0; i < tracks.length; i++)
+            TrackRow(
+              track: tracks[i],
+              index: showIndex ? i + 1 : null,
+              isActive: tracks[i].trackId == currentId,
+              isPlaying: playing,
+              onTap: () => ref.playTrack(tracks[i], context: tracks, index: i),
+              onLongPress: () =>
+                  openTrackContextMenu(context, ref, tracks[i]),
+            ),
+        ],
       ),
     );
   }
@@ -434,7 +492,7 @@ class _HomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.only(top: 16, bottom: 160),
+      padding: const EdgeInsets.only(top: 16, bottom: AppConstants.shellBottomInset),
       children: const [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),

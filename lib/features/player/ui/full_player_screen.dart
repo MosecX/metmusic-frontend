@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -95,14 +96,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     }
 
     final size = MediaQuery.sizeOf(context);
+    final isLandscape = size.width > size.height;
     // Estética Apple Music: la portada manda. Ocupa casi todo el ancho y se
-    // encoge apenas al pausar, como el artwork flotante de iOS.
-    final artworkSize = size.width * 0.78;
+    // encoge apenas al pausar, como el artwork flotante de iOS. El techo de
+    // 40 % de la alto mantiene arte + controles dentro del viewport en
+    // pantallas bajas.
+    final artworkSize = math.min(size.width * 0.78, size.height * 0.40);
 
-    // Info + controles: comunes a los dos modos (con y sin canvas).
+    // Info + controles: comunes a los dos modos (con y sin canvas). En
+    // apaisado no hay altura para la portada grande: mandan los controles,
+    // con gaps más compactos.
     final below = <Widget>[
       _TrackInfo(state: state),
-      const SizedBox(height: 20),
+      SizedBox(height: isLandscape ? 12 : 20),
       _SeekBar(
         state: state,
         dragValue: _dragValue,
@@ -112,11 +118,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           setState(() => _dragValue = null);
         },
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: isLandscape ? 8 : 12),
       _MainControls(state: state, controller: controller),
-      const SizedBox(height: 24),
+      SizedBox(height: isLandscape ? 14 : 24),
       _SecondaryControls(state: state),
-      const SizedBox(height: 16),
+      SizedBox(height: isLandscape ? 10 : 16),
       _QualityBadge(state: state),
     ];
 
@@ -134,11 +140,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     final List<Widget> columnChildren;
     if (hasCanvas) {
       columnChildren = [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _Header(state: state),
-        ),
-        const SizedBox(height: 8),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -204,9 +205,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                           colors: [
                             Colors.transparent,
                             Color(0xD70A0A0F),
-                            Color(0xE60A0A0F),
+                            AppColors.background,
                           ],
-                          stops: [0.0, 0.17, 1.0],
+                          stops: [0.0, 0.17, 0.55],
                         ),
                       ),
                       child: Padding(
@@ -216,6 +217,18 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                           children: below,
                         ),
                       ),
+                    ),
+                  ),
+                  // El header flota SOBRE el vídeo: el canvas sangra hasta
+                  // la status bar y el feather de arriba disuelve el corte
+                  // por detrás del título y del label de fuente/calidad.
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _Header(state: state),
                     ),
                   ),
                 ],
@@ -231,24 +244,50 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       Widget artwork = PlayerArtwork(
         url: state.artworkUrl,
         size: artworkSize,
-        radius: 18,
+        radius: 16,
         heroTag: AppConstants.heroArtworkTag,
         elevated: true,
       );
       artwork = AnimatedScale(
-        scale: state.playing ? 1 : 0.9,
+        scale: state.playing ? 1 : 0.92,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
         child: artwork,
       );
 
+      // El conjunto (arte + controles) se centra en el espacio disponible
+      // y, si no cabe —pantallas bajas, texto grande o apaisado—,
+      // `FittedBox.scaleDown` lo reduce de forma uniforme en vez de
+      // desbordar el `Column`. Sin un scroll interior, el gesto vertical
+      // de cerrar el player sigue sin competidores.
+      //
+      // En apaisado la portada se omite: no entra ni escalada, mandan los
+      // controles.
+      final showArtwork = !isLandscape || size.height >= 640;
       columnChildren = [
         _Header(state: state),
-        const Spacer(),
-        artwork,
-        const SizedBox(height: 32),
-        ...below,
-        const Spacer(),
+        Expanded(
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: math.max(0.0, size.width - 40),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showArtwork) ...[
+                      artwork,
+                      SizedBox(height: isLandscape ? 12 : 32),
+                    ],
+                    ...below,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ];
     }
 
@@ -337,19 +376,26 @@ class _CanvasFeather extends StatelessWidget {
         final bottomBand = (height * 0.20).clamp(88.0, 190.0);
 
         // Velo que tinta las bandas y tapa la costura entre el vídeo
-        // desenfocado y el nítido: opaco en el borde y transparente ya
-        // pasada la banda.
+        // desenfocado y el nítido: opaco en el borde —a plena opacidad
+        // detrás del header, que flota encima— y transparente ya pasada
+        // la banda.
         final topVeil = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [fade, fade.withValues(alpha: 0.45), Colors.transparent],
-          stops: const [0.0, 0.18, 0.34],
+          colors: [
+            fade,
+            fade.withValues(alpha: 0.92),
+            fade.withValues(alpha: 0.5),
+            fade.withValues(alpha: 0.16),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.09, 0.18, 0.28, 0.38],
         );
         final bottomVeil = LinearGradient(
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
-          colors: [fade, fade.withValues(alpha: 0.45), Colors.transparent],
-          stops: const [0.0, 0.20, 0.36],
+          colors: [fade, fade.withValues(alpha: 0.5), Colors.transparent],
+          stops: const [0.0, 0.22, 0.40],
         );
         // Los laterales hacen de viñeta suave hacia los bordes de la
         // pantalla.
@@ -637,8 +683,17 @@ class _SeekBar extends StatelessWidget {
       children: [
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            trackHeight: 4,
+            activeTrackColor: Colors.white,
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.18),
+            thumbShape: const RoundSliderThumbShape(
+              enabledThumbRadius: 6.5,
+              elevation: 3,
+            ),
+            thumbColor: Colors.white,
+            overlayShape:
+                const RoundSliderOverlayShape(overlayRadius: 16),
+            overlayColor: Colors.white.withValues(alpha: 0.12),
           ),
           child: Slider(
             value: value.clamp(0.0, 1.0),
@@ -653,9 +708,14 @@ class _SeekBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(DurationFormatter.format(shownPosition),
-                  style: AppTextStyles.caption),
+                  style: AppTextStyles.caption
+                      .copyWith(fontFeatures: const [
+                    FontFeature.tabularFigures(),
+                  ])),
               Text(DurationFormatter.format(total),
-                  style: AppTextStyles.caption),
+                  style: AppTextStyles.caption.copyWith(fontFeatures: const [
+                    FontFeature.tabularFigures(),
+                  ])),
             ],
           ),
         ),
@@ -688,7 +748,7 @@ class _MainControls extends StatelessWidget {
         ),
         _CircleIconButton(
           icon: LucideIcons.skipBack,
-          size: 30,
+          size: 28,
           tooltip: 'Anterior',
           onTap: controller.previous,
         ),
@@ -699,7 +759,7 @@ class _MainControls extends StatelessWidget {
         ),
         _CircleIconButton(
           icon: LucideIcons.skipForward,
-          size: 30,
+          size: 28,
           tooltip: 'Siguiente',
           onTap: controller.next,
         ),
@@ -735,32 +795,25 @@ class _PlayPauseButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 68,
-        height: 68,
-        decoration: BoxDecoration(
+        width: 72,
+        height: 72,
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          gradient: AppColors.accentGradient,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          color: Colors.white,
         ),
         child: Center(
           child: loading
               ? const SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 26,
+                  height: 26,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
+                    strokeWidth: 2.6,
                     color: Colors.black,
                   ),
                 )
               : Icon(
                   playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 30,
+                  size: 32,
                   color: Colors.black,
                 ),
         ),
@@ -774,7 +827,7 @@ class _CircleIconButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.active = false,
-    this.size = 22,
+    this.size = 24,
     this.tooltip,
   });
 
@@ -815,34 +868,88 @@ class _SecondaryControls extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final track = state.track;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        TextButton.icon(
-          onPressed: () {
-            if (track != null) {
-              AddToPlaylistSheet.show(context, track.trackId);
-            }
-          },
-          style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-          icon: const Icon(LucideIcons.plus, size: 16),
-          label: const Text('Playlist'),
+    // `FittedBox.scaleDown`: en pantallas de 320 px las tres pills caben
+    // siempre — se reducen un poco en vez de desbordar la fila.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _PillButton(
+            icon: LucideIcons.plus,
+            label: 'Playlist',
+            onTap: () {
+              if (track != null) {
+                AddToPlaylistSheet.show(context, track.trackId);
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          _PillButton(
+            icon: LucideIcons.list,
+            label: 'Cola',
+            onTap: () => QueueSheet.show(context),
+          ),
+          const SizedBox(width: 8),
+          _PillButton(
+            icon: LucideIcons.captions,
+            label: 'Letras',
+            onTap: () => LyricsSheet.show(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pill de vidrio de los controles secundarios (Playlist / Cola / Letras),
+/// igual que el boceto: fondo blanco 6 %, borde de vidrio, radio completo
+/// y pulsación con feedback.
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(width: 8),
-        TextButton.icon(
-          onPressed: () => QueueSheet.show(context),
-          style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-          icon: const Icon(LucideIcons.list, size: 16),
-          label: const Text('Cola'),
-        ),
-        const SizedBox(width: 8),
-        TextButton.icon(
-          onPressed: () => LyricsSheet.show(context),
-          style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-          icon: const Icon(LucideIcons.captions, size: 16),
-          label: const Text('Letras'),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -861,22 +968,34 @@ class _QualityBadge extends StatelessWidget {
     final stream = state.stream;
     if (stream == null) return const SizedBox(height: 34);
 
-    return GlassPlayerCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(LucideIcons.signal, size: 14, color: AppColors.accent),
-          const SizedBox(width: 8),
-          Text(
-            _label(stream.codec, stream.qualityLabel),
-            style: AppTextStyles.label.copyWith(color: AppColors.textPrimary),
-          ),
-          if (stream.isPreview) ...[
+    // Ancho máximo = pantalla - respiración: en dispositivos de 320 px el
+    // texto se recorta con elipsis en vez de desbordar el badge.
+    final maxWidth = MediaQuery.sizeOf(context).width - 48;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: GlassPlayerCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.signal, size: 14, color: AppColors.accent),
             const SizedBox(width: 8),
-            const Text('PREVIEW', style: AppTextStyles.caption),
+            Flexible(
+              child: Text(
+                _label(stream.codec, stream.qualityLabel),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    AppTextStyles.label.copyWith(color: AppColors.textPrimary),
+              ),
+            ),
+            if (stream.isPreview) ...[
+              const SizedBox(width: 8),
+              const Text('PREVIEW', style: AppTextStyles.caption),
+            ],
           ],
-        ],
+        ),
       ),
     ).animate().fadeIn(duration: 300.ms);
   }

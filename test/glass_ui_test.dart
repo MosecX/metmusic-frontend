@@ -21,7 +21,7 @@ BoxDecoration _decorationOf(WidgetTester tester, Type widgetType) {
 
 void main() {
   group('Glass 2 — GlassCard', () {
-    testWidgets('usa relleno transparente, borde 10% y radio 20',
+    testWidgets('usa relleno blanco 10%, borde 14% y radio 20',
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -30,12 +30,12 @@ void main() {
       );
 
       final decoration = _decorationOf(tester, GlassCard);
-      // Relleno 0% (transparente).
-      expect(decoration.color, AppColors.glassFillTransparent);
-      expect(decoration.color!.a, 0.0);
-      // Borde blanco al 10%.
+      // Relleno blanco al 10%.
+      expect(decoration.color, AppColors.glassFill);
+      expect(decoration.color!.a, closeTo(0.10, 0.01));
+      // Borde blanco al 14%.
       final border = decoration.border! as Border;
-      expect(border.top.color.a, closeTo(0.1, 0.01));
+      expect(border.top.color.a, closeTo(0.14, 0.01));
       // Radio 20.
       expect(
         (decoration.borderRadius as BorderRadius).topLeft.x,
@@ -45,7 +45,7 @@ void main() {
   });
 
   group('Glass 1 — GlassPlayerCard', () {
-    testWidgets('usa relleno blanco 15%, borde 10% y radio 20', (tester) async {
+    testWidgets('usa relleno blanco 10%, borde 14% y radio 20', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: GlassPlayerCard(child: Text('player'))),
@@ -53,10 +53,10 @@ void main() {
       );
 
       final decoration = _decorationOf(tester, GlassPlayerCard);
-      expect(decoration.color!.a, closeTo(0.15, 0.001));
+      expect(decoration.color!.a, closeTo(0.10, 0.01));
       expect(decoration.color!.r, 1.0);
       final border = decoration.border! as Border;
-      expect(border.top.color.a, closeTo(0.1, 0.01));
+      expect(border.top.color.a, closeTo(0.14, 0.01));
       expect((decoration.borderRadius as BorderRadius).topLeft.x, 20);
     });
   });
