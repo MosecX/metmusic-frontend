@@ -136,6 +136,7 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
       final controller = VideoPlayerController.networkUrl(
         Uri.parse(media.url),
         formatHint: media.isHls ? VideoFormat.hls : null,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
       pending = controller;
       await controller.initialize();
