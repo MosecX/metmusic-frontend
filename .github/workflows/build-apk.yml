@@ -64,6 +64,32 @@ jobs:
             "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|DN:"
           done
 
+      # Sube los APKs al repo CDN. Sólo en push (no en PRs): el build usa
+      # --split-per-abi, así que hay un APK por ABI en la carpeta versionada
+      # y en latest/. El commit lleva [skip ci] para no detonar el workflow
+      # del repo CDN.
+      - name: Publish APK to CDN repo
+        if: github.event_name == 'push'
+        env:
+          CDN_TOKEN: ${{ secrets.CDN_TOKEN }}
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          git clone --depth 1 "https://x-access-token:${CDN_TOKEN}@github.com/MosecX/cdn.tinvoxdevelopment.git" cdn-repo
+          cd cdn-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p "metmusic/${VERSION}-${SHORT_SHA}" metmusic/latest
+          for apk in ../build/app/outputs/flutter-apk/*.apk; do
+            name=$(basename "$apk")
+            abi_name="${name#app-}"
+            cp "$apk" "metmusic/${VERSION}-${SHORT_SHA}/MetMusic-${VERSION}-${SHORT_SHA}-${abi_name}"
+            cp "$apk" "metmusic/latest/MetMusic-${abi_name}"
+          done
+          git add metmusic
+          git diff --cached --quiet || git commit -m "MetMusic APK ${VERSION} (${SHORT_SHA}) [skip ci]"
+          git push
+
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
