@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
+import '../../../services/api/health_service.dart';
 import '../providers/settings_provider.dart';
 
 /// Ajustes en paneles glass: servicios, reproducción, apariencia y acerca de.
@@ -36,13 +37,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Text('Ajustes', style: AppTextStyles.largeTitle),
         ),
 
-        // --- Servicios ---
-        const _GroupLabel('Servicios'),
-        const GlassCard(
-          borderRadius: 16,
-          padding: EdgeInsets.symmetric(vertical: 2),
-          child: _ServicesStatus(),
-        ),
+        // --- Estado del servidor ---
+        const _ServicesSection(),
 
         // --- Reproducción ---
         const _GroupLabel('Reproducción'),
@@ -236,7 +232,9 @@ class _GlassRow extends StatelessWidget {
     this.value,
     this.chevron = false,
     this.dotColor,
+    this.dotGlow = false,
     this.iconColor,
+    this.labelColor,
     this.onTap,
   });
 
@@ -245,7 +243,9 @@ class _GlassRow extends StatelessWidget {
   final String? value;
   final bool chevron;
   final Color? dotColor;
+  final bool dotGlow;
   final Color? iconColor;
+  final Color? labelColor;
   final VoidCallback? onTap;
 
   @override
@@ -276,9 +276,9 @@ class _GlassRow extends StatelessWidget {
                 label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.textPrimary,
+                  color: labelColor ?? AppColors.textPrimary,
                 ),
               ),
             ),
@@ -290,6 +290,14 @@ class _GlassRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: dotColor,
                   shape: BoxShape.circle,
+                  boxShadow: dotGlow
+                      ? [
+                          BoxShadow(
+                            color: dotColor!.withValues(alpha: 0.55),
+                            blurRadius: 6,
+                          ),
+                        ]
+                      : null,
                 ),
               ),
             ],
@@ -425,85 +433,230 @@ class _GlassOptionSheet<T> extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Estado de los servicios del backend (`GET /api/health`)
+// Estado del backend (`GET /api/health`): servidor, metadatos, stream y sistema
 // ---------------------------------------------------------------------------
 
-class _ServicesStatus extends ConsumerWidget {
-  const _ServicesStatus();
+const Color _statusGreen = Color(0xFF34C759);
+const Color _statusRed = Color(0xFFFF453A);
+const Color _statusGray = Color(0xFF8E8E93);
+
+/// Secciones de estado agrupadas: servidor, metadatos, stream y sistema.
+class _ServicesSection extends ConsumerWidget {
+  const _ServicesSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const green = Color(0xFF34C759);
-    const red = Color(0xFFFF453A);
-
     final health = ref.watch(apiHealthProvider);
-    return health.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('Consultando el estado…', style: AppTextStyles.cardSubtitle),
-          ],
+    final status = health.valueOrNull;
+
+    final services = status?.services ?? const <HealthServiceStatus>[];
+    final metadata = services.where(_isMetadata).toList(growable: false);
+    final stream = services.where(_isStream).toList(growable: false);
+    final system = services
+        .where((s) => !_isMetadata(s) && !_isStream(s))
+        .toList(growable: false);
+
+    String? serverValue;
+    if (status != null) {
+      final parts = [
+        if (status.version != null) 'v${status.version}',
+        if (status.uptimeSeconds != null)
+          _formatUptime(status.uptimeSeconds!),
+      ];
+      serverValue = parts.isEmpty ? null : parts.join(' · ');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _GroupLabel('Servidor'),
+        GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: status != null
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _withSeparators([
+                    _GlassRow(
+                      icon: status.ok
+                          ? LucideIcons.check
+                          : LucideIcons.alertTriangle,
+                      iconColor: status.ok ? null : _statusRed,
+                      label: status.ok
+                          ? 'Servidor OK'
+                          : 'Servidor con problemas',
+                      dotColor: status.ok ? _statusGreen : _statusRed,
+                      dotGlow: true,
+                      value: serverValue,
+                    ),
+                    _GlassRow(
+                      icon: LucideIcons.refreshCw,
+                      label: 'Actualizar estado',
+                      onTap: () => ref.invalidate(apiHealthProvider),
+                    ),
+                  ]),
+                )
+              : health.hasError
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _withSeparators([
+                        const _GlassRow(
+                          icon: LucideIcons.alertTriangle,
+                          iconColor: _statusRed,
+                          label:
+                              'No se pudo consultar el estado del backend.',
+                        ),
+                        _GlassRow(
+                          icon: LucideIcons.refreshCw,
+                          label: 'Reintentar',
+                          onTap: () => ref.invalidate(apiHealthProvider),
+                        ),
+                      ]),
+                    )
+                  : const _LoadingRow(),
         ),
-      ),
-      error: (error, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: _withSeparators([
-          const _GlassRow(
-            icon: LucideIcons.alertTriangle,
-            iconColor: red,
-            label: 'No se pudo consultar el estado del backend.',
+        if (metadata.isNotEmpty) ...[
+          const _GroupLabel('Metadatos'),
+          GlassCard(
+            borderRadius: 16,
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _ServiceRows(services: metadata),
           ),
-          _GlassRow(
-            icon: LucideIcons.refreshCw,
-            label: 'Reintentar',
-            onTap: () => ref.invalidate(apiHealthProvider),
+        ],
+        if (stream.isNotEmpty) ...[
+          const _GroupLabel('Stream'),
+          GlassCard(
+            borderRadius: 16,
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _ServiceRows(services: stream),
           ),
-        ]),
-      ),
-      data: (status) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: _withSeparators([
-          _GlassRow(
-            icon: status.ok ? LucideIcons.check : LucideIcons.alertTriangle,
-            label: status.summary,
-            dotColor: status.ok ? green : red,
-            value: status.uptimeSeconds != null
-                ? 'Uptime ${_formatUptime(status.uptimeSeconds!)}'
-                : null,
+        ],
+        if (system.isNotEmpty) ...[
+          const _GroupLabel('Sistema'),
+          GlassCard(
+            borderRadius: 16,
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _ServiceRows(services: system),
           ),
-          for (final service in status.services)
-            _GlassRow(
-              icon: service.ok ? LucideIcons.check : LucideIcons.x,
-              label: service.name,
-              dotColor: service.ok ? green : red,
-              value: [
-                if (service.detail != null) service.detail!,
-                if (service.latencyMs != null)
-                  '${service.latencyMs!.round()} ms',
-              ].join(' · '),
-            ),
-          _GlassRow(
-            icon: LucideIcons.refreshCw,
-            label: 'Actualizar estado',
-            onTap: () => ref.invalidate(apiHealthProvider),
+        ],
+      ],
+    );
+  }
+}
+
+/// Filas de servicios de un grupo, con separadores inset.
+class _ServiceRows extends StatelessWidget {
+  const _ServiceRows({required this.services});
+
+  final List<HealthServiceStatus> services;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _withSeparators([
+        for (final service in services) _ServiceRow(service: service),
+      ]),
+    );
+  }
+}
+
+/// Fila de un servicio: check verde con glow si está activo, luna gris si
+/// está apagado o alerta roja si falló. El texto del `detail` del API no se
+/// muestra: el estado se lee con el icono y el punto.
+class _ServiceRow extends StatelessWidget {
+  const _ServiceRow({required this.service});
+
+  final HealthServiceStatus service;
+
+  @override
+  Widget build(BuildContext context) {
+    final off = (service.detail ?? '').toLowerCase().contains('apagado');
+    final down = !service.ok;
+
+    final IconData icon;
+    final Color? iconColor;
+    final Color dot;
+    final Color? labelColor;
+    final String? value;
+
+    if (down) {
+      icon = LucideIcons.alertTriangle;
+      iconColor = _statusRed;
+      dot = _statusRed;
+      labelColor = null;
+      value = null;
+    } else if (off) {
+      icon = LucideIcons.moon;
+      iconColor = _statusGray;
+      dot = _statusGray;
+      labelColor = _statusGray;
+      value = 'Apagado';
+    } else {
+      icon = LucideIcons.check;
+      iconColor = null;
+      dot = _statusGreen;
+      labelColor = null;
+      final latency = service.latencyMs;
+      value = (latency != null && latency > 0)
+          ? '${latency.round()} ms'
+          : null;
+    }
+
+    return _GlassRow(
+      icon: icon,
+      iconColor: iconColor,
+      label: service.name,
+      labelColor: labelColor,
+      dotColor: dot,
+      dotGlow: !off,
+      value: value,
+    );
+  }
+}
+
+class _LoadingRow extends StatelessWidget {
+  const _LoadingRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-        ]),
+          SizedBox(width: 12),
+          Text('Consultando el estado…', style: AppTextStyles.cardSubtitle),
+        ],
       ),
     );
   }
+}
 
-  String _formatUptime(double seconds) {
-    final total = seconds.toInt();
-    final hours = total ~/ 3600;
-    final minutes = (total % 3600) ~/ 60;
-    if (hours <= 0) return '$minutes min';
-    return '$hours h $minutes min';
-  }
+/// Proveedor de metadatos (catálogo): no entrega audio.
+bool _isMetadata(HealthServiceStatus service) {
+  return !_isStream(service) &&
+      !service.id.toLowerCase().contains('cache') &&
+      !service.name.toLowerCase().contains('redis');
+}
+
+/// Proveedor de stream: entrega audio (qobuz, tidal, monochrome, jiosaavn…).
+bool _isStream(HealthServiceStatus service) {
+  final id = service.id.toLowerCase();
+  final name = service.name.toLowerCase();
+  return id.contains('stream') ||
+      name.contains('stream') ||
+      const {'qobuz', 'monochrome', 'jiosaavn'}.contains(id);
+}
+
+String _formatUptime(double seconds) {
+  final total = seconds.toInt();
+  final hours = total ~/ 3600;
+  final minutes = (total % 3600) ~/ 60;
+  if (hours <= 0) return '$minutes min';
+  return '$hours h $minutes min';
 }
