@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,8 +18,10 @@ import '../../../core/widgets/segmented_control.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../core/widgets/track_row.dart';
 import '../../../navigation/routes.dart';
+import '../../../services/local/mix_favorites_service.dart';
 import '../../player/providers/playback_actions.dart';
 import '../../player/providers/player_provider.dart';
+import '../../player/providers/radio_provider.dart';
 import '../../player/ui/track_context_menu.dart';
 import '../models/library_models.dart';
 import '../providers/library_provider.dart';
@@ -85,6 +88,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                 children: const [
                   _PlaylistsTab(),
                   _FavoritesTab(),
+                  _MixesTab(),
                   _HistoryTab(),
                 ],
               ),
@@ -413,6 +417,133 @@ class _FavoritesTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mixes guardados (favoritos locales, sin sync con la API)
+// ---------------------------------------------------------------------------
+
+class _MixesTab extends ConsumerWidget {
+  const _MixesTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mixes = ref.watch(mixFavoritesProvider);
+
+    if (mixes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 40),
+        child: EmptyState(
+          icon: LucideIcons.radio,
+          title: 'Sin mixes guardados',
+          subtitle: 'Abrí una estación y tocá el corazón para guardarla.',
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: AppConstants.shellBottomInset,
+      ),
+      itemCount: mixes.length,
+      itemBuilder: (context, index) => _MixTile(saved: mixes[index]),
+    );
+  }
+}
+
+class _MixTile extends ConsumerWidget {
+  const _MixTile({required this.saved});
+
+  final SavedMix saved;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mix = saved.mix;
+    final imageUrl = mix.imageUrl ?? '';
+    final subtitle =
+        (mix.subTitle?.isNotEmpty ?? false) ? mix.subTitle! : 'Estación';
+
+    return InkWell(
+      onTap: () => context.push(Routes.mixPath(saved.trackId)),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: imageUrl.isEmpty
+                    ? const ColoredBox(
+                        color: Color(0x0DFFFFFF),
+                        child: Icon(
+                          LucideIcons.radio,
+                          size: 24,
+                          color: AppColors.textTertiary,
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => const ColoredBox(
+                          color: Color(0x0DFFFFFF),
+                          child: Icon(
+                            LucideIcons.radio,
+                            size: 24,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mix.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.rowTitle.copyWith(fontSize: 17),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.rowSubtitle,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Quitar de favoritos',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => ref
+                    .read(mixFavoritesProvider.notifier)
+                    .toggle(saved.trackId, saved.mix),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    LucideIcons.heart,
+                    size: 18,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

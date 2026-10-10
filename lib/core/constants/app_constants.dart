@@ -16,6 +16,7 @@ class AppConstants {
   // --- Hive ---
   static const String hiveBoxHistory = 'history';
   static const String hiveBoxFavorites = 'favorites';
+  static const String hiveBoxMixFavorites = 'mix_favorites';
   static const String hiveBoxPlaylists = 'user_playlists';
   static const String hiveBoxCache = 'api_cache';
 

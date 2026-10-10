@@ -17,6 +17,7 @@ import 'api/track_service.dart';
 import 'api/user_service.dart';
 import 'local/favorites_service.dart';
 import 'local/history_service.dart';
+import 'local/mix_favorites_service.dart';
 import 'local/settings_storage.dart';
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,12 @@ final historyServiceProvider = Provider<HistoryService>(
 
 final favoritesServiceProvider = Provider<FavoritesService>(
   (ref) => throw UnimplementedError('favoritesServiceProvider debe sobrescribirse'),
+);
+
+final mixFavoritesServiceProvider = Provider<MixFavoritesService>(
+  (ref) => throw UnimplementedError(
+    'mixFavoritesServiceProvider debe sobrescribirse',
+  ),
 );
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 enum LibraryTab {
   playlists('Playlists'),
   favorites('Favoritos'),
+  mixes('Mixes'),
   history('Historial');
 
   const LibraryTab(this.label);

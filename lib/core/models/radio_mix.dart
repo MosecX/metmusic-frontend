@@ -31,6 +31,14 @@ class RadioMix {
       imageUrl: Json.str(json['image_url']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        if (subTitle != null) 'sub_title': subTitle,
+        if (description != null) 'description': description,
+        if (imageUrl != null) 'image_url': imageUrl,
+      };
 }
 
 /// Respuesta de `GET /api/tracks/{trackId}/radio`.

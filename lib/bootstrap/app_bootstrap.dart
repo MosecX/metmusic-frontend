@@ -20,6 +20,7 @@ import '../features/player/audio/metmusic_audio_handler.dart';
 import '../services/api/stream_service.dart';
 import '../services/local/favorites_service.dart';
 import '../services/local/history_service.dart';
+import '../services/local/mix_favorites_service.dart';
 import '../services/local/settings_storage.dart';
 import '../services/service_providers.dart';
 
@@ -148,6 +149,7 @@ class BootResult {
     required this.settings,
     required this.history,
     required this.favorites,
+    required this.mixFavorites,
     required this.baseUrl,
     required this.token,
     required this.client,
@@ -157,6 +159,7 @@ class BootResult {
   final SettingsStorage settings;
   final HistoryService history;
   final FavoritesService favorites;
+  final MixFavoritesService mixFavorites;
   final BaseUrlHolder baseUrl;
   final ApiTokenHolder token;
   final ApiClient client;
@@ -188,9 +191,11 @@ Future<BootResult> bootApp() async {
   // 3. Cajas de Hive (historial, favoritos).
   final HistoryService history;
   final FavoritesService favorites;
+  final MixFavoritesService mixFavorites;
   try {
     history = await HistoryService.open();
     favorites = await FavoritesService.open();
+    mixFavorites = await MixFavoritesService.open();
   } catch (error, stack) {
     _fail('Cajas de Hive (historial/favoritos)', error, stack);
   }
@@ -219,6 +224,7 @@ Future<BootResult> bootApp() async {
     settings: settings,
     history: history,
     favorites: favorites,
+    mixFavorites: mixFavorites,
     baseUrl: baseUrl,
     token: token,
     client: client,
@@ -337,6 +343,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
           settingsStorageProvider.overrideWithValue(result.settings),
           historyServiceProvider.overrideWithValue(result.history),
           favoritesServiceProvider.overrideWithValue(result.favorites),
+          mixFavoritesServiceProvider.overrideWithValue(result.mixFavorites),
           baseUrlHolderProvider.overrideWithValue(result.baseUrl),
           apiTokenHolderProvider.overrideWithValue(result.token),
           apiClientProvider.overrideWithValue(result.client),

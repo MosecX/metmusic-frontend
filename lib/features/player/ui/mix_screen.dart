@@ -19,8 +19,8 @@ import '../providers/radio_provider.dart';
 import 'track_context_menu.dart';
 
 /// Página de una estación (`/mix/:trackId`): su portada, su título y todas
-/// sus pistas listas para reproducir. Se abre desde el menú de contexto,
-/// que además arranca la reproducción.
+/// sus pistas listas para reproducir. Se abre desde el menú de contexto sin
+/// arrancar la reproducción: el usuario la inicia desde los botones de acá.
 class MixScreen extends ConsumerWidget {
   const MixScreen({super.key, required this.trackId});
 
@@ -136,6 +136,8 @@ class _Content extends ConsumerWidget {
                         : () => ref.playAll(tracks, shuffled: true),
                   ),
                 ),
+                const SizedBox(width: 12),
+                _FavoriteMixButton(station: station),
               ],
             ),
           ),
@@ -208,6 +210,50 @@ class _MixTrackRow extends ConsumerWidget {
         onPressed: () => ref.enqueueTrack(track),
         icon: const Icon(LucideIcons.plus,
             size: 16, color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+/// Guarda la estación en favoritos locales (sólo en el teléfono, no en la API).
+class _FavoriteMixButton extends ConsumerWidget {
+  const _FavoriteMixButton({required this.station});
+
+  final RadioStation station;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final saved = ref.watch(
+      mixFavoritesProvider.select(
+        (list) => list.any((entry) => entry.trackId == station.trackId),
+      ),
+    );
+
+    return Tooltip(
+      message: saved ? 'Quitar de favoritos' : 'Guardar en favoritos',
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.08),
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.glassBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: station.trackId.isEmpty
+              ? null
+              : () => ref
+                  .read(mixFavoritesProvider.notifier)
+                  .toggle(station.trackId, station.mix),
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(
+              LucideIcons.heart,
+              size: 20,
+              color: saved ? AppColors.accent : AppColors.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }

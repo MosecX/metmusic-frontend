@@ -17,7 +17,6 @@ import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../navigation/routes.dart';
 import '../../../services/service_providers.dart';
-import '../providers/playback_actions.dart';
 import '../providers/radio_provider.dart';
 
 /// Acciones disponibles en el menú de contexto de una pista.
@@ -76,8 +75,8 @@ Future<void> openTrackContextMenu(
   }
 }
 
-/// Pide la estación de [track], la reproduce como cola nueva y abre su
-/// página (`/mix/{trackId}`).
+/// Pide la estación de [track] y abre su página (`/mix/{trackId}`) sin
+/// arrancar la reproducción: el usuario decide desde ahí.
 ///
 /// En frío tarda ~0.5–1 s (dos peticiones encadenadas + throttle de 300 ms
 /// en el backend): se tapa con un overlay de carga y NO se reintenta en
@@ -92,7 +91,7 @@ Future<void> _startRadio(
     station = await LoadingOverlay.show<RadioStation?>(
       context,
       ref.read(radioServiceProvider).getRadio(track.trackId),
-      message: 'Armando la estación…',
+      message: 'Abriendo la estación…',
     );
   } on ApiException catch (error) {
     if (context.mounted) {
@@ -114,10 +113,7 @@ Future<void> _startRadio(
     );
     return;
   }
-  await ref.playAll(station.items);
-  if (context.mounted) {
-    unawaited(context.push(Routes.mixPath(track.trackId)));
-  }
+  unawaited(context.push(Routes.mixPath(track.trackId)));
 }
 
 /// Carga el TrackSchema completo de la pista y abre el modal con sus
