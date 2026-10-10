@@ -99,7 +99,7 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
   @override
   void didUpdateWidget(covariant CanvasOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.media.url != widget.media.url) {
+    if (oldWidget.media.displayUrl != widget.media.displayUrl) {
       _disposeController();
       _load();
       return;
@@ -129,12 +129,13 @@ class _CanvasOverlayState extends State<CanvasOverlay> {
 
   Future<void> _load() async {
     final media = widget.media;
-    if (media.url.isEmpty) return;
+    final url = media.displayUrl;
+    if (url.isEmpty) return;
     _reportedAspect = null;
     VideoPlayerController? pending;
     try {
       final controller = VideoPlayerController.networkUrl(
-        Uri.parse(media.url),
+        Uri.parse(url),
         formatHint: media.isHls ? VideoFormat.hls : null,
         videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );

@@ -21,6 +21,19 @@ class CanvasMedia {
   bool get isHls => kind.toLowerCase() == 'hls';
   bool get isMp4 => !isHls;
 
+  /// URL efectiva a reproducir.
+  ///
+  /// Los canvases de Apple Music vienen en vertical: se usa `url_tall` cuando
+  /// existe y se cae a la `url` normal si no. Spotify (y el resto) usan la
+  /// `url` tal cual.
+  String get displayUrl {
+    final p = provider?.toLowerCase() ?? '';
+    if (p.contains('apple') && urlTall != null && urlTall!.isNotEmpty) {
+      return urlTall!;
+    }
+    return url;
+  }
+
   factory CanvasMedia.fromJson(Map<String, dynamic> json) {
     return CanvasMedia(
       url: Json.strOr(json['url'], ''),
