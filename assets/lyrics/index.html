@@ -18,9 +18,9 @@
       --am-lyrics-line-spacing: 25px;
     }
   </style>
-  <script type="module">
-    import './am-lyrics.min.js';
-  </script>
+  <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
+       desde origin file:// en Android WebView. -->
+  <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
   <am-lyrics autoscroll interpolate></am-lyrics>
