@@ -1,14 +1,26 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// Hoja de letras am-lyrics embebida como WebView.
+/// WebView que hostea el Web Component am-lyrics.
 ///
-/// El Web Component recibe `track-id` / `api-base` / `api-token` y pide sus
-/// propias letras al backend; Flutter sólo empuja el tiempo de reproducción,
-/// el play/pause y convierte los `line-click` en seek.
+/// am-lyrics NO tiene loop de animación interno. Es un componente
+/// "dumb": el consumidor debe empujar currentTime frame por frame
+/// para que el karaoke avance. Este widget hace ese empuje con un
+/// Ticker a ~33 Hz (delta mínimo de 30ms), lo bastante frecuente
+/// para que la sincronía palabra-por-palabra se vea fluida sin
+/// saturar el puente Dart-JS.
 class AmLyricsWebView extends StatefulWidget {
+  final String trackId;
+  final String apiBase;
+  final String apiToken;
+  final String highlightColor;
+  final Duration initialPosition;
+  final ValueChanged<Duration>? onLineTap;
+  final ValueChanged<String>? onError;
+
   const AmLyricsWebView({
     super.key,
     required this.trackId,
@@ -17,30 +29,29 @@ class AmLyricsWebView extends StatefulWidget {
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
     this.onLineTap,
+    this.onError,
   });
-
-  final String trackId;
-  final String apiBase;
-  final String apiToken;
-  final String highlightColor;
-
-  /// Posición que se aplica al terminar de cargar la página.
-  final Duration initialPosition;
-
-  final ValueChanged<Duration>? onLineTap;
 
   @override
   State<AmLyricsWebView> createState() => AmLyricsWebViewState();
 }
 
-class AmLyricsWebViewState extends State<AmLyricsWebView> {
+class AmLyricsWebViewState extends State<AmLyricsWebView>
+    with SingleTickerProviderStateMixin {
   late final WebViewController _ctrl;
+  late final Ticker _ticker;
   bool _ready = false;
-  bool _paused = false;
+
+  double _pendingMs = 0;
+  double _lastSentMs = -1;
+
+  static const double _minDeltaMs = 30.0;
 
   @override
   void initState() {
     super.initState();
+    _pendingMs = widget.initialPosition.inMilliseconds.toDouble();
+
     _ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -48,101 +59,90 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
         'AmLyricsBridge',
         onMessageReceived: (msg) {
           final data = jsonDecode(msg.message) as Map<String, dynamic>;
-          if (data['type'] == 'line-click') {
-            widget.onLineTap?.call(
-              Duration(milliseconds: (data['timestamp'] as num).toInt()),
-            );
+          final type = data['type'] as String?;
+          switch (type) {
+            case 'line-click':
+              final ts = (data['timestamp'] as num).toInt();
+              widget.onLineTap?.call(Duration(milliseconds: ts));
+              break;
+            case 'ready':
+              _ready = true;
+              break;
+            case 'error':
+              final message = (data['message'] as String?) ?? 'unknown';
+              widget.onError?.call(message);
+              break;
           }
         },
       )
       ..loadFlutterAsset('assets/lyrics/index.html')
-      ..setNavigationDelegate(
-        NavigationDelegate(onPageFinished: (_) => _configure()),
-      );
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) => _configure(),
+      ));
+
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
-  void didUpdateWidget(covariant AmLyricsWebView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final credentialsChanged = oldWidget.trackId != widget.trackId ||
-        oldWidget.apiBase != widget.apiBase ||
-        oldWidget.apiToken != widget.apiToken;
-    if (!credentialsChanged) return;
-    // Pista nueva: vuelve a correr el provider con los nuevos atributos.
-    _paused = false;
-    if (_ready) {
-      _apply();
-    }
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
   }
 
-  String _configureJs() {
+  void _onTick(Duration _) {
+    if (!_ready) return;
+    if ((_pendingMs - _lastSentMs).abs() < _minDeltaMs) return;
+    _lastSentMs = _pendingMs;
+    _ctrl.runJavaScript(
+      'window.__amLyrics && (window.__amLyrics.currentTime = $_pendingMs);',
+    );
+  }
+
+  Future<void> _configure() async {
     final trackId = jsonEncode(widget.trackId);
     final apiBase = jsonEncode(widget.apiBase);
     final apiToken = jsonEncode(widget.apiToken);
     final color = jsonEncode(widget.highlightColor);
-    final position = widget.initialPosition.inMilliseconds;
-    // IIFE + guard: repetir la configuración no duplica el listener.
-    return '''
-      (() => {
-        const el = document.querySelector('am-lyrics');
-        if (!el) return;
-        el.setAttribute('track-id', $trackId);
-        el.setAttribute('api-base', $apiBase);
-        el.setAttribute('api-token', $apiToken);
-        el.setAttribute('highlight-color', $color);
-        el.currentTime = $position;
-        if (!el.__amLyricsBridgeBound) {
-          el.__amLyricsBridgeBound = true;
-          el.addEventListener('line-click', (e) => {
-            AmLyricsBridge.postMessage(JSON.stringify({
-              type: 'line-click',
-              timestamp: e.detail.timestamp
-            }));
-          });
-        }
-        window.__amLyrics = el;
-      })();
-    ''';
+
+    await _ctrl.runJavaScript('''
+customElements.whenDefined('am-lyrics').then(() => {
+  const el = document.querySelector('am-lyrics');
+  if (!el) {
+    AmLyricsBridge.postMessage(JSON.stringify({
+      type: 'error',
+      message: 'am-lyrics element not in DOM'
+    }));
+    return;
+  }
+  el.setAttribute('track-id', $trackId);
+  el.setAttribute('api-base', $apiBase);
+  el.setAttribute('api-token', $apiToken);
+  el.setAttribute('highlight-color', $color);
+  el.setAttribute('autoscroll', '');
+  el.setAttribute('interpolate', '');
+  el.addEventListener('line-click', (e) => {
+    AmLyricsBridge.postMessage(JSON.stringify({
+      type: 'line-click',
+      timestamp: e.detail.timestamp
+    }));
+  });
+  window.__amLyrics = el;
+  AmLyricsBridge.postMessage(JSON.stringify({ type: 'ready' }));
+}).catch((err) => {
+  AmLyricsBridge.postMessage(JSON.stringify({
+    type: 'error',
+    message: 'whenDefined failed: ' + String(err)
+  }));
+});
+''');
   }
 
-  Future<void> _apply() => _ctrl.runJavaScript(_configureJs());
-
-  Future<void> _configure() async {
-    await _apply();
-    if (mounted) _ready = true;
+  /// Llamar desde el widget padre cada vez que el player reporta
+  /// nueva posición. Solo guarda; el Ticker decide cuándo cruzar
+  /// el puente.
+  void updatePosition(Duration position) {
+    _pendingMs = position.inMilliseconds.toDouble();
   }
-
-  Future<void> _js(String code) async {
-    if (!_ready) return;
-    await _ctrl.runJavaScript(code);
-  }
-
-  /// Empuja la posición real del reproductor al componente.
-  Future<void> updatePosition(Duration position) {
-    if (_paused) return Future<void>.value();
-    return _js(
-      'window.__amLyrics.currentTime = ${position.inMilliseconds};',
-    );
-  }
-
-  /// Reanuda desde [startMs] (los ticks de posición vuelven a empujarse).
-  Future<void> play(double startMs) {
-    _paused = false;
-    return _js('window.__amLyrics.currentTime = $startMs;');
-  }
-
-  /// Congela el avance: se dejan de empujar posiciones.
-  ///
-  /// No se usa `duration = -1` porque en am-lyrics eso es un *reset*
-  /// (ver `updated()` de AmLyrics: pone `currentTime = 0` y limpia las
-  /// líneas activas), no una pausa.
-  Future<void> pause() {
-    _paused = true;
-    return Future<void>.value();
-  }
-
-  /// Salta a [ms] manteniendo la reproducción.
-  Future<void> seek(double ms) => _js('window.__amLyrics.currentTime = $ms;');
 
   @override
   Widget build(BuildContext context) => WebViewWidget(controller: _ctrl);

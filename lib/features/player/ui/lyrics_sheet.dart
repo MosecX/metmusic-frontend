@@ -270,20 +270,6 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       _visualizerBg?.stop();
     }
 
-    // am-lyrics (WebView): si el reproductor arranca o se para, se lo
-    // decimos al componente; si no hay WebView montado, no hace nada.
-    ref.listen<bool>(playerProvider.select((s) => s.isPlaying), (
-      previous,
-      next,
-    ) {
-      final webView = _lyricsWebViewKey.currentState;
-      if (webView == null) return;
-      if (next) {
-        webView.play(positionMs.toDouble());
-      } else {
-        webView.pause();
-      }
-    });
     ref.listen<Duration>(playerProvider.select((s) => s.position), (
       previous,
       next,
@@ -431,6 +417,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
                   initialPosition: Duration(milliseconds: positionMs),
                   onLineTap: (position) =>
                       ref.read(playerProvider.notifier).seek(position),
+                  onError: (msg) => debugPrint('[am-lyrics] error: $msg'),
                 ),
               ),
             ],
