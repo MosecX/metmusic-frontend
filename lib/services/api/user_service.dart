@@ -187,7 +187,10 @@ class UserService {
     final value = map['favorites'] ?? map['ids'] ?? map['track_ids'];
     if (value is List) return Json.strings(value).toSet();
     if (map.values.every((v) => v is bool)) {
-      return map.entries.where((e) => e.value == true).map((e) => e.key).toSet();
+      return map.entries
+          .where((e) => e.value == true)
+          .map((e) => e.key)
+          .toSet();
     }
     return <String>{};
   }

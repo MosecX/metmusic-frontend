@@ -330,7 +330,8 @@ class _HeroArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final size = (screenWidth - 96).clamp(170.0, 264.0);
-    final borderRadius = isRound ? BorderRadius.zero : BorderRadius.circular(12);
+    final borderRadius =
+        isRound ? BorderRadius.zero : BorderRadius.circular(12);
 
     final content = ColoredBox(
       color: Colors.white.withValues(alpha: 0.05),

@@ -28,9 +28,15 @@ class ErrorState extends StatelessWidget {
   String get _detail {
     final e = error;
     if (e is ApiException) {
-      if (e is UnauthorizedApiException) return 'Abrí Settings para actualizar el token.';
-      if (e is NetworkApiException) return 'Verificá tu conexión y la URL del backend.';
-      if (e is ServerApiException) return 'El backend respondió con error ${e.statusCode ?? ''}.';
+      if (e is UnauthorizedApiException) {
+        return 'Abrí Settings para actualizar el token.';
+      }
+      if (e is NetworkApiException) {
+        return 'Verificá tu conexión y la URL del backend.';
+      }
+      if (e is ServerApiException) {
+        return 'El backend respondió con error ${e.statusCode ?? ''}.';
+      }
     }
     return e.toString();
   }
@@ -77,7 +83,8 @@ class ErrorState extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

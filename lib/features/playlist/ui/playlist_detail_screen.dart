@@ -218,8 +218,8 @@ class _Content extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(LucideIcons.shuffle,
-                  color: AppColors.textPrimary),
+              leading:
+                  const Icon(LucideIcons.shuffle, color: AppColors.textPrimary),
               title: const Text('Reproducir aleatorio'),
               onTap: () {
                 Navigator.of(context).pop();

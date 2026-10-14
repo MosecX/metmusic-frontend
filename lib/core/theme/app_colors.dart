@@ -79,7 +79,10 @@ class AppColors {
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color.alphaBlend(dark.withValues(alpha: 0.65), background), background],
+      colors: [
+        Color.alphaBlend(dark.withValues(alpha: 0.65), background),
+        background
+      ],
     );
   }
 }

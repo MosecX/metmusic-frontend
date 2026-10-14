@@ -24,7 +24,8 @@ class GlassStyles {
   static const double blurSigma = 20;
 
   // --- Glass 1: reproductor (relleno blanco 10%) ---
-  static BoxDecoration playerDecoration({double borderRadius = playerBorderRadius}) {
+  static BoxDecoration playerDecoration(
+      {double borderRadius = playerBorderRadius}) {
     return BoxDecoration(
       color: AppColors.glassFill,
       borderRadius: BorderRadius.circular(borderRadius),

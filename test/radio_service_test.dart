@@ -61,7 +61,10 @@ void main() {
       'description': 'Mezcla a partir de la pista semilla',
       'image_url': 'https://images/signed-mix.jpg',
     },
-    'items': [track, <String, dynamic>{'track_id': '90210', 'title': 'Digital Love'}],
+    'items': [
+      track,
+      <String, dynamic>{'track_id': '90210', 'title': 'Digital Love'}
+    ],
   };
 
   setUp(() async {

@@ -21,7 +21,8 @@ class AudioPlayerService {
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
   Stream<bool> get playingStream => _player.playingStream;
-  Stream<ProcessingState> get processingStateStream => _player.processingStateStream;
+  Stream<ProcessingState> get processingStateStream =>
+      _player.processingStateStream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<PlaybackEvent> get playbackEventStream => _player.playbackEventStream;
   Stream<int?> get currentIndexStream => _player.currentIndexStream;
@@ -88,7 +89,8 @@ class AudioPlayerService {
 
   Future<void> seek(Duration position) => _player.seek(position);
 
-  Future<void> setVolume(double value) => _player.setVolume(value.clamp(0.0, 1.0));
+  Future<void> setVolume(double value) =>
+      _player.setVolume(value.clamp(0.0, 1.0));
 
   Future<void> setLoopMode(LoopMode mode) => _player.setLoopMode(mode);
 

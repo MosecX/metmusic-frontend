@@ -63,7 +63,8 @@ class SearchController extends StateNotifier<SearchState> {
           );
       // Ignorar respuestas obsoletas.
       if (state.query.trim() != trimmed) return;
-      state = state.copyWith(results: results, loading: false, clearError: true);
+      state =
+          state.copyWith(results: results, loading: false, clearError: true);
     } catch (error) {
       if (state.query.trim() != trimmed) return;
       state = state.copyWith(loading: false, error: error);

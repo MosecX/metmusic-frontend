@@ -210,7 +210,9 @@ class MetMusicAudioHandler extends BaseAudioHandler
   /// Alterna shuffle desde la UI.
   Future<void> toggleShuffle() async {
     await setShuffleMode(
-      _queue.shuffle ? AudioServiceShuffleMode.none : AudioServiceShuffleMode.all,
+      _queue.shuffle
+          ? AudioServiceShuffleMode.none
+          : AudioServiceShuffleMode.all,
     );
   }
 
@@ -240,8 +242,7 @@ class MetMusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) async {
-    final index =
-        _queue.tracks.indexWhere((t) => t.trackId == mediaItem.id);
+    final index = _queue.tracks.indexWhere((t) => t.trackId == mediaItem.id);
     if (index >= 0) await removeQueueItemAt(index);
   }
 
@@ -279,7 +280,8 @@ class MetMusicAudioHandler extends BaseAudioHandler
   // -------------------------------------------------------------- Internos
 
   /// Carga y reproduce el track actual de la cola.
-  Future<void> _loadCurrent({bool autoplay = true, bool isRetry = false}) async {
+  Future<void> _loadCurrent(
+      {bool autoplay = true, bool isRetry = false}) async {
     final track = _queue.current;
     if (track == null) {
       await _player.stop();

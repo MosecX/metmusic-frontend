@@ -12,7 +12,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/lyrics_timeline.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
+import '../../../services/service_providers.dart';
 import '../../settings/providers/settings_provider.dart';
+import '../lyrics/webview/am_lyrics_webview.dart';
 import '../models/player_state.dart';
 import '../providers/lyrics_provider.dart';
 import '../providers/player_provider.dart';
@@ -105,6 +107,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
 
   /// Controlador del `DraggableScrollableSheet` (la lista usa el mismo).
   ScrollController? _sheetController;
+
+  /// Estado del WebView de am-lyrics: play/pause/seek se puentean por aquí.
+  final GlobalKey<AmLyricsWebViewState> _lyricsWebViewKey =
+      GlobalKey<AmLyricsWebViewState>();
 
   /// Ticker del fondo animado del modo visualizer (creado sólo si se usa).
   AnimationController? _visualizerBg;
@@ -246,9 +252,8 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     final litIndex = synced ? lyrics.activeLineIndex(positionMs) : -1;
     final anchorIndex = synced ? lyricsAnchorIndex(lines, positionMs) : -1;
 
-    final target = synced
-        ? predictiveScrollTarget(lines, anchorIndex, positionMs)
-        : null;
+    final target =
+        synced ? predictiveScrollTarget(lines, anchorIndex, positionMs) : null;
     if (target != null && target.line < _lineRow.length) {
       final row = _lineRow[target.line];
       if (row != _targetRow) {
@@ -264,6 +269,27 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
     } else {
       _visualizerBg?.stop();
     }
+
+    // am-lyrics (WebView): si el reproductor arranca o se para, se lo
+    // decimos al componente; si no hay WebView montado, no hace nada.
+    ref.listen<bool>(playerProvider.select((s) => s.isPlaying), (
+      previous,
+      next,
+    ) {
+      final webView = _lyricsWebViewKey.currentState;
+      if (webView == null) return;
+      if (next) {
+        webView.play(positionMs.toDouble());
+      } else {
+        webView.pause();
+      }
+    });
+    ref.listen<Duration>(playerProvider.select((s) => s.position), (
+      previous,
+      next,
+    ) {
+      _lyricsWebViewKey.currentState?.updatePosition(next);
+    });
 
     return DraggableScrollableSheet(
       initialChildSize: 1,
@@ -388,6 +414,29 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       ),
     );
 
+    // Karaoke con am-lyrics: sólo con `sync_level == word` y track con id.
+    final webViewTrackId = state.track?.trackId ?? '';
+    final useWebView =
+        level == LyricsSyncLevel.word && webViewTrackId.isNotEmpty;
+    final Widget body = useWebView
+        ? Column(
+            children: [
+              _header(synced: synced, landscape: landscape),
+              Expanded(
+                child: AmLyricsWebView(
+                  key: _lyricsWebViewKey,
+                  trackId: webViewTrackId,
+                  apiBase: ref.watch(baseUrlHolderProvider).value,
+                  apiToken: ref.watch(apiTokenHolderProvider).value,
+                  initialPosition: Duration(milliseconds: positionMs),
+                  onLineTap: (position) =>
+                      ref.read(playerProvider.notifier).seek(position),
+                ),
+              ),
+            ],
+          )
+        : list;
+
     if (!visualizer) {
       // Modo estándar: fondo = artwork desenfocado + velo oscuro.
       return Stack(
@@ -408,7 +457,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
               ),
             ),
           const ColoredBox(color: Color(0xCC000000)),
-          list,
+          body,
         ],
       );
     }
@@ -423,7 +472,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
           controller: _ensureVisualizerBg(),
         ),
         const ColoredBox(color: Color(0x99000000)),
-        list,
+        body,
       ],
     );
   }

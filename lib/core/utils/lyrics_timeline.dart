@@ -155,7 +155,10 @@ class LyricsWipeRow {
   /// Índices de palabra de la fila, sin repetir y en orden.
   List<int> get words {
     final seen = <int>{};
-    return [for (final box in fragments) if (seen.add(box.word)) box.word];
+    return [
+      for (final box in fragments)
+        if (seen.add(box.word)) box.word
+    ];
   }
 }
 
@@ -166,8 +169,7 @@ class LyricsWipeRow {
 List<LyricsWipeRow> lyricsWipeRows(List<LyricsWipeBox> boxes) {
   final rows = <LyricsWipeRow>[];
   for (final box in boxes) {
-    final rowIndex =
-        rows.indexWhere((row) => (row.top - box.top).abs() <= 0.5);
+    final rowIndex = rows.indexWhere((row) => (row.top - box.top).abs() <= 0.5);
     if (rowIndex < 0) {
       rows.add(LyricsWipeRow(
         top: box.top,

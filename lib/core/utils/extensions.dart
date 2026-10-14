@@ -13,7 +13,8 @@ extension BuildContextX on BuildContext {
   double get screenHeight => MediaQuery.sizeOf(this).height;
 
   /// Muestra un SnackBar flotante con el estilo de la app.
-  void showSnack(String message, {bool isError = false, SnackBarAction? action}) {
+  void showSnack(String message,
+      {bool isError = false, SnackBarAction? action}) {
     final messenger = ScaffoldMessenger.maybeOf(this);
     if (messenger == null) return;
     messenger
@@ -95,7 +96,8 @@ class Json {
   }
 
   /// Lee una lista de objetos desde `json[key]`.
-  static List<Map<String, dynamic>> listAt(Map<String, dynamic> json, String key) =>
+  static List<Map<String, dynamic>> listAt(
+          Map<String, dynamic> json, String key) =>
       maps(json[key]);
 
   /// Normaliza una respuesta dinámica a un mapa.

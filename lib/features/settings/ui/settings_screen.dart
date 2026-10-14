@@ -460,8 +460,7 @@ class _ServicesSection extends ConsumerWidget {
     if (status != null) {
       final parts = [
         if (status.version != null) 'v${status.version}',
-        if (status.uptimeSeconds != null)
-          _formatUptime(status.uptimeSeconds!),
+        if (status.uptimeSeconds != null) _formatUptime(status.uptimeSeconds!),
       ];
       serverValue = parts.isEmpty ? null : parts.join(' · ');
     }
@@ -482,9 +481,8 @@ class _ServicesSection extends ConsumerWidget {
                           ? LucideIcons.check
                           : LucideIcons.alertTriangle,
                       iconColor: status.ok ? null : _statusRed,
-                      label: status.ok
-                          ? 'Servidor OK'
-                          : 'Servidor con problemas',
+                      label:
+                          status.ok ? 'Servidor OK' : 'Servidor con problemas',
                       dotColor: status.ok ? _statusGreen : _statusRed,
                       dotGlow: true,
                       value: serverValue,
@@ -503,8 +501,7 @@ class _ServicesSection extends ConsumerWidget {
                         const _GlassRow(
                           icon: LucideIcons.alertTriangle,
                           iconColor: _statusRed,
-                          label:
-                              'No se pudo consultar el estado del backend.',
+                          label: 'No se pudo consultar el estado del backend.',
                         ),
                         _GlassRow(
                           icon: LucideIcons.refreshCw,
@@ -598,9 +595,7 @@ class _ServiceRow extends StatelessWidget {
       dot = _statusGreen;
       labelColor = null;
       final latency = service.latencyMs;
-      value = (latency != null && latency > 0)
-          ? '${latency.round()} ms'
-          : null;
+      value = (latency != null && latency > 0) ? '${latency.round()} ms' : null;
     }
 
     return _GlassRow(

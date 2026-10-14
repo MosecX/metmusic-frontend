@@ -16,8 +16,10 @@ class ApiClient {
   ApiClient({required this.baseUrl, required this.token}) {
     dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(milliseconds: ApiConstants.connectTimeout),
-        receiveTimeout: const Duration(milliseconds: ApiConstants.receiveTimeout),
+        connectTimeout:
+            const Duration(milliseconds: ApiConstants.connectTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: ApiConstants.receiveTimeout),
         sendTimeout: const Duration(milliseconds: ApiConstants.sendTimeout),
         responseType: ResponseType.json,
         contentType: Headers.jsonContentType,
@@ -31,7 +33,8 @@ class ApiClient {
     dio.interceptors.addAll([
       BaseUrlInterceptor(baseUrl),
       AuthInterceptor(token),
-      _RetryInterceptor(dio),        if (kDebugMode) _LoggingInterceptor(),
+      _RetryInterceptor(dio),
+      if (kDebugMode) _LoggingInterceptor(),
     ]);
   }
 
@@ -60,7 +63,8 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
   }) {
-    return _guard(() => dio.post<dynamic>(path, data: body, queryParameters: query));
+    return _guard(
+        () => dio.post<dynamic>(path, data: body, queryParameters: query));
   }
 
   /// PUT con body JSON.
@@ -69,7 +73,8 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
   }) {
-    return _guard(() => dio.put<dynamic>(path, data: body, queryParameters: query));
+    return _guard(
+        () => dio.put<dynamic>(path, data: body, queryParameters: query));
   }
 
   /// DELETE (opcionalmente con body).
@@ -78,7 +83,8 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
   }) {
-    return _guard(() => dio.delete<dynamic>(path, data: body, queryParameters: query));
+    return _guard(
+        () => dio.delete<dynamic>(path, data: body, queryParameters: query));
   }
 
   /// Ejecuta una request y traduce cualquier [DioException] a [ApiException].
@@ -118,7 +124,8 @@ class _RetryInterceptor extends Interceptor {
   static const String _retryCountKey = 'metmusic_retry_count';
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+      DioException err, ErrorInterceptorHandler handler) async {
     final options = err.requestOptions;
     final isStream = options.path.contains('/stream/');
     final isGet = options.method.toUpperCase() == 'GET';
@@ -156,7 +163,8 @@ class _LoggingInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+      Response<dynamic> response, ResponseInterceptorHandler handler) {
     developer.log(
       '← ${response.statusCode} ${response.requestOptions.path}',
       name: 'http',

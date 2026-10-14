@@ -73,7 +73,8 @@ class AppTheme {
         filled: true,
         fillColor: AppColors.controlFill,
         hintStyle: AppTextStyles.bodyLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -124,7 +125,8 @@ class AppTheme {
               ? AppColors.accent
               : const Color(0x52787880),
         ),
-        trackOutlineColor: WidgetStateProperty.resolveWith((_) => Colors.transparent),
+        trackOutlineColor:
+            WidgetStateProperty.resolveWith((_) => Colors.transparent),
       ),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: AppColors.accent,

@@ -172,7 +172,8 @@ class _PlaylistsTab extends ConsumerWidget {
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(userPlaylistsProvider.notifier).refresh(),
           child: ListView.builder(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             itemCount: items.length,
             itemBuilder: (context, index) => _PlaylistTile(
               playlist: items[index],
@@ -389,7 +390,8 @@ class _FavoritesTab extends ConsumerWidget {
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(favoritesListProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             children: [
               for (var i = 0; i < tracks.length; i++)
                 TrackRow(
@@ -587,7 +589,8 @@ class _HistoryTab extends ConsumerWidget {
           backgroundColor: AppColors.backgroundAlt,
           onRefresh: () => ref.read(historyListProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: AppConstants.shellBottomInset),
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, bottom: AppConstants.shellBottomInset),
             children: [
               Row(
                 children: [

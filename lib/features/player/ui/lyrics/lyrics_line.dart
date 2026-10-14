@@ -61,8 +61,7 @@ class LyricsLine extends StatelessWidget {
     // cambios simultáneos compitiendo.
     final fadeOut = Duration(milliseconds: visualizer ? 570 : 450);
     final curve = visualizer ? Curves.easeOutCubic : Curves.easeInOutCubic;
-    final align =
-        visualizer && landscape ? TextAlign.center : TextAlign.left;
+    final align = visualizer && landscape ? TextAlign.center : TextAlign.left;
     final dimColor = AppColors.textPrimary.withValues(alpha: 0.42);
 
     final style = TextStyle(
@@ -86,9 +85,8 @@ class LyricsLine extends StatelessWidget {
       scale: lyricsScale(distance),
       duration: duration,
       curve: curve,
-      alignment: align == TextAlign.center
-          ? Alignment.center
-          : Alignment.centerLeft,
+      alignment:
+          align == TextAlign.center ? Alignment.center : Alignment.centerLeft,
       child: child,
     );
     child = AnimatedOpacity(
@@ -115,7 +113,8 @@ class LyricsLine extends StatelessWidget {
         child: AnimatedContainer(
           duration: duration,
           curve: curve,
-          margin: EdgeInsets.symmetric(vertical: visualizer ? (lit ? 9 : 6) : (lit ? 7 : 5)),
+          margin: EdgeInsets.symmetric(
+              vertical: visualizer ? (lit ? 9 : 6) : (lit ? 7 : 5)),
           padding: visualizer
               ? const EdgeInsets.symmetric(horizontal: 18, vertical: 8)
               : const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -488,6 +487,5 @@ class _RowClipper extends CustomClipper<Rect> {
   Rect getClip(Size size) => _rect.intersect(Offset.zero & size);
 
   @override
-  bool shouldReclip(covariant _RowClipper oldClipper) =>
-      oldClipper.row != row;
+  bool shouldReclip(covariant _RowClipper oldClipper) => oldClipper.row != row;
 }

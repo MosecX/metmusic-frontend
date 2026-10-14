@@ -25,7 +25,8 @@ class HistoryEntry {
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) {
     final rawTrack = json['track'];
-    final playedAtRaw = json['played_at'] ?? json['created_at'] ?? json['timestamp'];
+    final playedAtRaw =
+        json['played_at'] ?? json['created_at'] ?? json['timestamp'];
     return HistoryEntry(
       trackId: Json.strOr(json['track_id'] ?? json['id'], ''),
       playedAt: _parseDate(playedAtRaw) ?? DateTime.now(),

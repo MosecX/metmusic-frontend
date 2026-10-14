@@ -6,8 +6,8 @@ import 'package:metmusic/core/utils/lyrics_timeline.dart';
 /// lookahead del scroll predictivo, huecos instrumentales y guardas del
 /// karaoke por palabra. Todo es puro, sin widgets.
 void main() {
-  SyncedLine line(int timeMs, String text, {int? durationMs,
-    List<SyncedWord> words = const []}) {
+  SyncedLine line(int timeMs, String text,
+      {int? durationMs, List<SyncedWord> words = const []}) {
     return SyncedLine(
       timeMs: timeMs,
       text: text,

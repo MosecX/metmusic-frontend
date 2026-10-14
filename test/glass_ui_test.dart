@@ -14,15 +14,17 @@ import 'package:metmusic/core/widgets/track_row.dart';
 
 BoxDecoration _decorationOf(WidgetTester tester, Type widgetType) {
   final container = tester.widget<Container>(
-    find.descendant(of: find.byType(widgetType), matching: find.byType(Container)).first,
+    find
+        .descendant(
+            of: find.byType(widgetType), matching: find.byType(Container))
+        .first,
   );
   return container.decoration! as BoxDecoration;
 }
 
 void main() {
   group('Glass 2 — GlassCard', () {
-    testWidgets('usa relleno blanco 10%, borde 14% y radio 20',
-        (tester) async {
+    testWidgets('usa relleno blanco 10%, borde 14% y radio 20', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: GlassCard(child: Text('contenido'))),

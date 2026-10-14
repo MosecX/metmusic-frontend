@@ -75,8 +75,10 @@ void main() {
           Size.zero);
       expect(CanvasOverlay.fittedSize(const Size(300, 300), 0, BoxFit.cover),
           Size.zero);
-      expect(CanvasOverlay.fittedSize(const Size(300, 300), double.nan,
-          BoxFit.cover), Size.zero);
+      expect(
+          CanvasOverlay.fittedSize(
+              const Size(300, 300), double.nan, BoxFit.cover),
+          Size.zero);
     });
   });
 
@@ -91,16 +93,14 @@ void main() {
 
     test('acepta la ruta ya separada por barras', () {
       expect(
-        ImageUtils.artistImageUrl(
-            '65d23ddc/7b3b/4b17/bc84/b02832ddc204'),
+        ImageUtils.artistImageUrl('65d23ddc/7b3b/4b17/bc84/b02832ddc204'),
         'https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/'
         'b02832ddc204/750x750.jpg',
       );
     });
 
     test('respeta una URL absoluta del backend', () {
-      const url =
-          'https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/'
+      const url = 'https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/'
           'b02832ddc204/1280x1280.jpg';
       expect(ImageUtils.artistImageUrl(url), url);
     });

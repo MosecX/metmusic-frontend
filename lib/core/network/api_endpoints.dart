@@ -13,7 +13,8 @@ class ApiEndpoints {
   static String stream(String trackId) => '$prefix/stream/$trackId';
   static String album(String albumId) => '$prefix/albums/$albumId';
   static String artist(String artistId) => '$prefix/artists/$artistId';
-  static String playlist(String playlistUuid) => '$prefix/playlists/$playlistUuid';
+  static String playlist(String playlistUuid) =>
+      '$prefix/playlists/$playlistUuid';
   static String lyrics(String trackId) => '$prefix/lyrics/$trackId';
   static String canvas(String trackId) => '$prefix/canvas/$trackId';
   static String radio(String trackId) => '$prefix/tracks/$trackId/radio';
@@ -27,14 +28,17 @@ class ApiEndpoints {
   // --- Playlists del usuario ---
   static const String userPlaylists = '$prefix/user/playlists';
   static String userPlaylist(String id) => '$prefix/user/playlists/$id';
-  static String userPlaylistTracks(String id) => '$prefix/user/playlists/$id/tracks';
+  static String userPlaylistTracks(String id) =>
+      '$prefix/user/playlists/$id/tracks';
   static String userPlaylistTrack(String id, String trackId) =>
       '$prefix/user/playlists/$id/tracks/$trackId';
-  static String userPlaylistReorder(String id) => '$prefix/user/playlists/$id/reorder';
+  static String userPlaylistReorder(String id) =>
+      '$prefix/user/playlists/$id/reorder';
 
   // --- Historial / Favoritos ---
   static const String userHistory = '$prefix/user/history';
-  static String userFavorite(String trackId) => '$prefix/user/favorites/$trackId';
+  static String userFavorite(String trackId) =>
+      '$prefix/user/favorites/$trackId';
   static const String userFavorites = '$prefix/user/favorites';
   static const String userFavoritesCheck = '$prefix/user/favorites/check';
 

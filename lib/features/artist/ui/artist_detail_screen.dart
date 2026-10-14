@@ -100,9 +100,7 @@ class _Content extends ConsumerWidget {
             onShuffle: topTracks.isEmpty
                 ? null
                 : () => ref.playAll(topTracks, shuffled: true),
-            onPlay: topTracks.isEmpty
-                ? null
-                : () => ref.playAll(topTracks),
+            onPlay: topTracks.isEmpty ? null : () => ref.playAll(topTracks),
           ),
         ),
         if (artist.bio != null && artist.bio!.trim().isNotEmpty)
@@ -133,9 +131,8 @@ class _Content extends ConsumerWidget {
                           index: i + 1,
                           showArtwork: false,
                           showAlbum: true,
-                          isActive:
-                              playerState.track?.trackId ==
-                                  topTracks[i].trackId,
+                          isActive: playerState.track?.trackId ==
+                              topTracks[i].trackId,
                           isPlaying: playerState.playing,
                           onTap: () => ref.playTrack(
                             topTracks[i],

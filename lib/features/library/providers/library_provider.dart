@@ -11,7 +11,8 @@ import '../../../services/service_providers.dart';
 import '../models/library_models.dart';
 
 /// Pestaña activa de la Library.
-final libraryTabProvider = StateProvider<LibraryTab>((ref) => LibraryTab.playlists);
+final libraryTabProvider =
+    StateProvider<LibraryTab>((ref) => LibraryTab.playlists);
 
 // ---------------------------------------------------------------------------
 // Playlists del usuario (con caché local en Hive para modo offline)

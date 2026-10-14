@@ -36,9 +36,12 @@ class Playlist {
       title: Json.strOr(json['title'] ?? json['name'], 'Sin título'),
       creator: Json.str(json['creator'] ?? json['owner']),
       description: Json.str(json['description']),
-      numberOfTracks: Json.asInt(json['number_of_tracks'] ?? json['track_count']),
+      numberOfTracks:
+          Json.asInt(json['number_of_tracks'] ?? json['track_count']),
       thumbnails: Thumbnail.listFrom(json['thumbnails'] ?? json['images']),
-      tracks: Json.listAt(json, 'tracks').map(Track.fromJson).toList(growable: false),
+      tracks: Json.listAt(json, 'tracks')
+          .map(Track.fromJson)
+          .toList(growable: false),
     );
   }
 

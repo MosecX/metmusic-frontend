@@ -34,7 +34,9 @@ class UserPlaylist {
       description: Json.str(json['description']),
       coverUrl: Json.str(json['cover_url'] ?? json['cover']),
       trackCount: Json.asInt(json['track_count'] ?? json['number_of_tracks']),
-      tracks: Json.listAt(json, 'tracks').map(Track.fromJson).toList(growable: false),
+      tracks: Json.listAt(json, 'tracks')
+          .map(Track.fromJson)
+          .toList(growable: false),
       createdAt: Json.str(json['created_at']),
       updatedAt: Json.str(json['updated_at']),
     );
@@ -70,11 +72,12 @@ class UserPlaylist {
     );
   }
 
-  static List<UserPlaylist> listFrom(dynamic value) => Json.maps(value)
-      .map(UserPlaylist.fromJson)
-      .toList(growable: false);
+  static List<UserPlaylist> listFrom(dynamic value) =>
+      Json.maps(value).map(UserPlaylist.fromJson).toList(growable: false);
 
   /// Los thumbnails sintéticos derivan del cover_url local del usuario.
   List<Thumbnail> get syntheticThumbnails =>
-      (coverUrl != null && coverUrl!.isNotEmpty) ? [Thumbnail(url: coverUrl!)] : const [];
+      (coverUrl != null && coverUrl!.isNotEmpty)
+          ? [Thumbnail(url: coverUrl!)]
+          : const [];
 }

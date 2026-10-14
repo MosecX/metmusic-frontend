@@ -691,8 +691,7 @@ class _SeekBar extends StatelessWidget {
               elevation: 3,
             ),
             thumbColor: Colors.white,
-            overlayShape:
-                const RoundSliderOverlayShape(overlayRadius: 16),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
             overlayColor: Colors.white.withValues(alpha: 0.12),
           ),
           child: Slider(
@@ -708,8 +707,7 @@ class _SeekBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(DurationFormatter.format(shownPosition),
-                  style: AppTextStyles.caption
-                      .copyWith(fontFeatures: const [
+                  style: AppTextStyles.caption.copyWith(fontFeatures: const [
                     FontFeature.tabularFigures(),
                   ])),
               Text(DurationFormatter.format(total),

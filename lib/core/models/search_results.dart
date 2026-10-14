@@ -42,12 +42,18 @@ class SearchResults {
   int get count =>
       tracks.length + albums.length + artists.length + playlists.length;
 
-  factory SearchResults.fromJson(Map<String, dynamic> json, {String query = ''}) {
+  factory SearchResults.fromJson(Map<String, dynamic> json,
+      {String query = ''}) {
     return SearchResults(
-      tracks: Json.listAt(json, 'tracks').map(Track.fromJson).toList(growable: false),
-      albums: Json.listAt(json, 'albums').map(Album.fromJson).toList(growable: false),
-      artists:
-          Json.listAt(json, 'artists').map(Artist.fromJson).toList(growable: false),
+      tracks: Json.listAt(json, 'tracks')
+          .map(Track.fromJson)
+          .toList(growable: false),
+      albums: Json.listAt(json, 'albums')
+          .map(Album.fromJson)
+          .toList(growable: false),
+      artists: Json.listAt(json, 'artists')
+          .map(Artist.fromJson)
+          .toList(growable: false),
       playlists: Json.listAt(json, 'playlists')
           .map(Playlist.fromJson)
           .toList(growable: false),

@@ -18,10 +18,9 @@ class QueueState {
 
   static const QueueState empty = QueueState();
 
-  Track? get current =>
-      (currentIndex >= 0 && currentIndex < tracks.length)
-          ? tracks[currentIndex]
-          : null;
+  Track? get current => (currentIndex >= 0 && currentIndex < tracks.length)
+      ? tracks[currentIndex]
+      : null;
 
   bool get isEmpty => tracks.isEmpty;
 

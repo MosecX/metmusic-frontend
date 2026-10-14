@@ -25,15 +25,18 @@ import 'local/settings_storage.dart';
 // ---------------------------------------------------------------------------
 
 final settingsStorageProvider = Provider<SettingsStorage>(
-  (ref) => throw UnimplementedError('settingsStorageProvider debe sobrescribirse'),
+  (ref) =>
+      throw UnimplementedError('settingsStorageProvider debe sobrescribirse'),
 );
 
 final historyServiceProvider = Provider<HistoryService>(
-  (ref) => throw UnimplementedError('historyServiceProvider debe sobrescribirse'),
+  (ref) =>
+      throw UnimplementedError('historyServiceProvider debe sobrescribirse'),
 );
 
 final favoritesServiceProvider = Provider<FavoritesService>(
-  (ref) => throw UnimplementedError('favoritesServiceProvider debe sobrescribirse'),
+  (ref) =>
+      throw UnimplementedError('favoritesServiceProvider debe sobrescribirse'),
 );
 
 final mixFavoritesServiceProvider = Provider<MixFavoritesService>(

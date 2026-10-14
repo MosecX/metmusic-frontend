@@ -158,8 +158,8 @@ class PlayerController extends StateNotifier<MetPlayerState> {
     int? startIndex,
   }) async {
     if (context != null && context.isNotEmpty) {
-      final index = startIndex ??
-          context.indexWhere((t) => t.trackId == track.trackId);
+      final index =
+          startIndex ?? context.indexWhere((t) => t.trackId == track.trackId);
       await _handler.playQueue(
         context,
         startIndex: index < 0 ? 0 : index,
@@ -220,7 +220,8 @@ class PlayerController extends StateNotifier<MetPlayerState> {
 
   Future<void> cycleRepeat() => _handler.cycleRepeat();
 
-  Future<void> setVolume(double value) => _handler.playerService.setVolume(value);
+  Future<void> setVolume(double value) =>
+      _handler.playerService.setVolume(value);
 
   /// Alterna favorito.
   ///

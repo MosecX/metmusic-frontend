@@ -70,7 +70,8 @@ class _HomeContent extends ConsumerWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 12, bottom: AppConstants.shellBottomInset),
+      padding:
+          const EdgeInsets.only(top: 12, bottom: AppConstants.shellBottomInset),
       children: [
         _Greeting(),
         const SizedBox(height: 16),
@@ -136,7 +137,8 @@ class _HomeContent extends ConsumerWidget {
           break;
         case ExploreSectionType.tracks:
           widgets.add(_TrackListCard(tracks: section.tracks));
-          break;        case ExploreSectionType.playlists:
+          break;
+        case ExploreSectionType.playlists:
           widgets.add(_PlaylistCarousel(playlists: section.playlists));
           break;
         case ExploreSectionType.artists:
@@ -473,8 +475,7 @@ class _TrackListCard extends ConsumerWidget {
               isActive: tracks[i].trackId == currentId,
               isPlaying: playing,
               onTap: () => ref.playTrack(tracks[i], context: tracks, index: i),
-              onLongPress: () =>
-                  openTrackContextMenu(context, ref, tracks[i]),
+              onLongPress: () => openTrackContextMenu(context, ref, tracks[i]),
             ),
         ],
       ),
@@ -492,7 +493,8 @@ class _HomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.only(top: 16, bottom: AppConstants.shellBottomInset),
+      padding:
+          const EdgeInsets.only(top: 16, bottom: AppConstants.shellBottomInset),
       children: const [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),

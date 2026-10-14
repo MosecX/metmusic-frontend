@@ -30,7 +30,10 @@ class HomeData {
   final bool offline;
 
   bool get isEmpty =>
-      recent.isEmpty && newReleases.isEmpty && charts.isEmpty && explore.isEmpty;
+      recent.isEmpty &&
+      newReleases.isEmpty &&
+      charts.isEmpty &&
+      explore.isEmpty;
 }
 
 /// Controlador de la Home: combina `/api/explore/*` con el historial local.
@@ -58,7 +61,8 @@ class HomeController extends AsyncNotifier<HomeData> {
 
       return HomeData(
         recent: recent,
-        newReleases: newReleases.isNotEmpty ? newReleases : _albumsFrom(explore),
+        newReleases:
+            newReleases.isNotEmpty ? newReleases : _albumsFrom(explore),
         charts: charts.isNotEmpty ? charts : _tracksFrom(explore),
         explore: explore,
         mood: mood,
@@ -84,7 +88,8 @@ class HomeController extends AsyncNotifier<HomeData> {
 
   List<Album> _albumsFrom(ExploreHome home) {
     for (final section in home.sections) {
-      if (section.type == ExploreSectionType.albums && section.albums.isNotEmpty) {
+      if (section.type == ExploreSectionType.albums &&
+          section.albums.isNotEmpty) {
         return section.albums;
       }
     }
@@ -93,7 +98,8 @@ class HomeController extends AsyncNotifier<HomeData> {
 
   List<Track> _tracksFrom(ExploreHome home) {
     for (final section in home.sections) {
-      if (section.type == ExploreSectionType.tracks && section.tracks.isNotEmpty) {
+      if (section.type == ExploreSectionType.tracks &&
+          section.tracks.isNotEmpty) {
         return section.tracks;
       }
     }

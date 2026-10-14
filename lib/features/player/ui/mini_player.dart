@@ -40,81 +40,83 @@ class MiniPlayer extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                       child: Row(
-                    children: [
-                      PlayerArtwork(
-                        url: state.artworkUrl,
-                        size: 46,
-                        radius: 10,
-                        heroTag: AppConstants.heroArtworkTag,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              state.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
+                        children: [
+                          PlayerArtwork(
+                            url: state.artworkUrl,
+                            size: 46,
+                            radius: 10,
+                            heroTag: AppConstants.heroArtworkTag,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  state.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.body.copyWith(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  state.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.caption.copyWith(
+                                    fontSize: 12.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (state.loading)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: IconButton(
+                                tooltip:
+                                    state.playing ? 'Pausar' : 'Reproducir',
+                                padding: EdgeInsets.zero,
+                                onPressed: controller.togglePlayPause,
+                                icon: Icon(
+                                  state.playing
+                                      ? LucideIcons.pause
+                                      : LucideIcons.play,
+                                  size: 22,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              state.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 12.5,
-                                color: AppColors.textSecondary,
+                          SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: IconButton(
+                              tooltip: 'Siguiente',
+                              padding: EdgeInsets.zero,
+                              onPressed: controller.next,
+                              icon: const Icon(
+                                LucideIcons.skipForward,
+                                size: 21,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      if (state.loading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                        )
-                      else
-                        SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: IconButton(
-                            tooltip: state.playing ? 'Pausar' : 'Reproducir',
-                            padding: EdgeInsets.zero,
-                            onPressed: controller.togglePlayPause,
-                            icon: Icon(
-                              state.playing
-                                  ? LucideIcons.pause
-                                  : LucideIcons.play,
-                              size: 22,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: IconButton(
-                          tooltip: 'Siguiente',
-                          padding: EdgeInsets.zero,
-                          onPressed: controller.next,
-                          icon: const Icon(
-                            LucideIcons.skipForward,
-                            size: 21,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
                         ],
                       ),
                     ),

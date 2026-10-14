@@ -96,8 +96,7 @@ class _Content extends ConsumerWidget {
             imageUrl: album.thumbnailUrl,
             title: album.title,
             artist: album.artist,
-            onArtistTap: (album.artistId != null &&
-                    album.artistId!.isNotEmpty)
+            onArtistTap: (album.artistId != null && album.artistId!.isNotEmpty)
                 ? () => context.push(Routes.artistPath(album.artistId!))
                 : null,
             meta: [

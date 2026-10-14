@@ -35,10 +35,9 @@ class Track {
   Duration get duration => Duration(seconds: durationSeconds);
 
   /// Título con el sufijo de versión cuando existe (ej. "Song (Remix)").
-  String get displayTitle =>
-      (version != null && version!.trim().isNotEmpty)
-          ? '$title (${version!.trim()})'
-          : title;
+  String get displayTitle => (version != null && version!.trim().isNotEmpty)
+      ? '$title (${version!.trim()})'
+      : title;
 
   String get thumbnailUrl => ImageUtils.cardThumbnail(thumbnails);
   String get listThumbnailUrl => ImageUtils.listThumbnail(thumbnails);
@@ -51,7 +50,8 @@ class Track {
       artistId: Json.str(json['artist_id']),
       album: Json.str(json['album'] ?? json['album_title']),
       albumId: Json.str(json['album_id']),
-      durationSeconds: Json.intOr(json['duration_seconds'] ?? json['duration'], 0),
+      durationSeconds:
+          Json.intOr(json['duration_seconds'] ?? json['duration'], 0),
       isrc: Json.str(json['isrc']),
       thumbnails: Thumbnail.listFrom(json['thumbnails'] ?? json['images']),
       quality: Json.str(json['quality']),
@@ -106,8 +106,7 @@ class Track {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is Track && other.trackId == trackId;
+  bool operator ==(Object other) => other is Track && other.trackId == trackId;
 
   @override
   int get hashCode => trackId.hashCode;

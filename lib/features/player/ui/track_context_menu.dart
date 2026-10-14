@@ -349,7 +349,10 @@ class TrackDetailsSheet extends StatelessWidget {
     final d = details;
     return [
       (label: 'Álbum', value: d.album ?? '—'),
-      (label: 'Duración', value: DurationFormatter.fromSeconds(d.durationSeconds)),
+      (
+        label: 'Duración',
+        value: DurationFormatter.fromSeconds(d.durationSeconds)
+      ),
       (label: 'Calidad', value: d.quality ?? '—'),
       if (d.version != null) (label: 'Versión', value: d.version!),
       (label: 'Explícito', value: d.explicit ? 'Sí' : 'No'),
@@ -367,10 +370,9 @@ class TrackDetailsSheet extends StatelessWidget {
   }
 
   /// `65.2` / `123`: sin ceros de más.
-  static String _num(double value) =>
-      value == value.roundToDouble()
-          ? value.toStringAsFixed(0)
-          : value.toStringAsFixed(1);
+  static String _num(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
 }
 
 class _DetailRow extends StatelessWidget {

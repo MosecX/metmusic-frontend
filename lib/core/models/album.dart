@@ -31,8 +31,9 @@ class Album {
   final String? copyright;
   final String? upc;
 
-  String get year =>
-      (releaseDate != null && releaseDate!.length >= 4) ? releaseDate!.substring(0, 4) : '';
+  String get year => (releaseDate != null && releaseDate!.length >= 4)
+      ? releaseDate!.substring(0, 4)
+      : '';
 
   String get thumbnailUrl => ImageUtils.cardThumbnail(thumbnails);
 
@@ -45,10 +46,13 @@ class Album {
       artist: Json.str(json['artist'] ?? json['artist_name']),
       artistId: Json.str(json['artist_id']),
       releaseDate: Json.str(json['release_date']),
-      numberOfTracks: Json.asInt(json['number_of_tracks'] ?? json['track_count']),
+      numberOfTracks:
+          Json.asInt(json['number_of_tracks'] ?? json['track_count']),
       durationSeconds: Json.asInt(json['duration_seconds']),
       thumbnails: Thumbnail.listFrom(json['thumbnails'] ?? json['images']),
-      tracks: Json.listAt(json, 'tracks').map(Track.fromJson).toList(growable: false),
+      tracks: Json.listAt(json, 'tracks')
+          .map(Track.fromJson)
+          .toList(growable: false),
       copyright: Json.str(json['copyright']),
       upc: Json.str(json['upc']),
     );

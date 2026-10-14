@@ -119,11 +119,14 @@ class AddToPlaylistSheet extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref, String playlistId) async {
+  Future<void> _add(
+      BuildContext context, WidgetRef ref, String playlistId) async {
     try {
       await LoadingOverlay.show(
         context,
-        ref.read(userPlaylistsProvider.notifier).addTracks(playlistId, [trackId]),
+        ref
+            .read(userPlaylistsProvider.notifier)
+            .addTracks(playlistId, [trackId]),
         message: 'Agregando…',
       );
       if (context.mounted) {

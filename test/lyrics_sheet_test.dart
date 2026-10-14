@@ -161,8 +161,7 @@ void main() {
       expect(texts[2].textSpan!.style!.color, AppColors.accent);
     });
 
-    testWidgets(
-        'interpola entre ticks y corta en seeks sin romper el wipe',
+    testWidgets('interpola entre ticks y corta en seeks sin romper el wipe',
         (tester) async {
       await pumpLine(tester, lit: true, distance: 0, positionMs: 1500);
       expect(find.byType(ShaderMask), findsNWidgets(2));
@@ -182,7 +181,8 @@ void main() {
     testWidgets('sin nivel word va a texto plano (un solo Text)', (
       tester,
     ) async {
-      await pumpLine(tester, lit: true, distance: 0, level: LyricsSyncLevel.line);
+      await pumpLine(tester,
+          lit: true, distance: 0, level: LyricsSyncLevel.line);
       expect(find.byType(WordWipeText), findsNothing);
       expect(find.byType(ShaderMask), findsNothing);
       expect(

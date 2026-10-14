@@ -163,9 +163,8 @@ class NotFoundApiException extends ApiException {
   final String message;
 
   @override
-  String get userMessage => message == 'Recurso no encontrado'
-      ? 'Track no disponible'
-      : message;
+  String get userMessage =>
+      message == 'Recurso no encontrado' ? 'Track no disponible' : message;
 
   @override
   bool get isRetryable => false;

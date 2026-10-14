@@ -50,8 +50,7 @@ class MixScreen extends ConsumerWidget {
                   Expanded(
                     child: ErrorState(
                       error: error,
-                      onRetry: () =>
-                          ref.invalidate(mixDetailProvider(trackId)),
+                      onRetry: () => ref.invalidate(mixDetailProvider(trackId)),
                     ),
                   ),
                 ],

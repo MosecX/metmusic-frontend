@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: transparent; overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none; user-select: none;
+    }
+    am-lyrics {
+      --am-lyrics-highlight-color: #BF5AF2;
+      --lyplus-font-size-base: 34px;
+      --am-lyrics-line-height: 1.2;
+      --am-lyrics-line-spacing: 25px;
+    }
+  </style>
+  <script type="module">
+    import './am-lyrics.min.js';
+  </script>
+</head>
+<body>
+  <am-lyrics autoscroll interpolate></am-lyrics>
+</body>
+</html>

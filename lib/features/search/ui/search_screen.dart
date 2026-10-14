@@ -83,8 +83,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             labels: [for (final type in SearchType.values) type.label],
             selectedIndex: SearchType.values.indexOf(state.type),
             fontSize: 12,
-            onChanged: (index) =>
-                ref.read(searchProvider.notifier).setType(SearchType.values[index]),
+            onChanged: (index) => ref
+                .read(searchProvider.notifier)
+                .setType(SearchType.values[index]),
           ),
         ),
         const SizedBox(height: 4),
@@ -129,7 +130,8 @@ class _SearchField extends StatelessWidget {
               onSubmitted: onSubmitted,
               textInputAction: TextInputAction.search,
               textCapitalization: TextCapitalization.none,
-              style: const TextStyle(fontSize: 17, color: AppColors.textPrimary),
+              style:
+                  const TextStyle(fontSize: 17, color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'Artistas, canciones, álbumes…',
                 hintStyle: TextStyle(
@@ -495,10 +497,8 @@ class _TrackList extends ConsumerWidget {
               isActive: tracks[i].trackId == currentId,
               isPlaying: playing,
               showAlbum: true,
-              onTap: () =>
-                  ref.playTrack(tracks[i], context: tracks, index: i),
-              onLongPress: () =>
-                  openTrackContextMenu(context, ref, tracks[i]),
+              onTap: () => ref.playTrack(tracks[i], context: tracks, index: i),
+              onLongPress: () => openTrackContextMenu(context, ref, tracks[i]),
             ),
         ],
       ),

@@ -97,18 +97,19 @@ class QueueSheet extends ConsumerWidget {
                             final isActive =
                                 index == queue.currentIndex && player.hasTrack;
                             return _QueueTile(
-                              key: ValueKey(
-                                  '${track.trackId}_$index'),
+                              key: ValueKey('${track.trackId}_$index'),
                               index: index,
                               title: track.displayTitle,
                               subtitle: track.artist ?? '',
                               duration: track.duration,
                               isActive: isActive,
                               isPlaying: isActive && player.playing,
-                              onTap: () =>
-                                  ref.read(queueProvider.notifier).jumpTo(index),
-                              onRemove: () =>
-                                  ref.read(queueProvider.notifier).removeAt(index),
+                              onTap: () => ref
+                                  .read(queueProvider.notifier)
+                                  .jumpTo(index),
+                              onRemove: () => ref
+                                  .read(queueProvider.notifier)
+                                  .removeAt(index),
                               onLongPress: () =>
                                   openTrackContextMenu(context, ref, track),
                             );

@@ -24,7 +24,8 @@ class StreamService {
     );
     final info = StreamInfo.fromJson(Json.mapOf(data));
     if (info.url.isEmpty) {
-      throw const ParseApiException('El backend no devolvió una URL reproducible');
+      throw const ParseApiException(
+          'El backend no devolvió una URL reproducible');
     }
     return info;
   }

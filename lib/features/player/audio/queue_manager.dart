@@ -41,10 +41,9 @@ class QueueManager {
 
   int get currentIndex => _currentIndex;
 
-  Track? get current =>
-      (_currentIndex >= 0 && _currentIndex < _tracks.length)
-          ? _tracks[_currentIndex]
-          : null;
+  Track? get current => (_currentIndex >= 0 && _currentIndex < _tracks.length)
+      ? _tracks[_currentIndex]
+      : null;
 
   bool get shuffle => _shuffle;
 
@@ -79,7 +78,8 @@ class QueueManager {
     _tracks
       ..clear()
       ..addAll(tracks);
-    _currentIndex = tracks.isEmpty ? -1 : startIndex.clamp(0, tracks.length - 1);
+    _currentIndex =
+        tracks.isEmpty ? -1 : startIndex.clamp(0, tracks.length - 1);
     _rebuildPlayOrder();
     _emit();
   }
