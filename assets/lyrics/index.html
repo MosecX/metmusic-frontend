@@ -11,11 +11,27 @@
       -webkit-tap-highlight-color: transparent;
       -webkit-user-select: none; user-select: none;
     }
+    /* Optimización: reducir tamaño de fuente y radios para bajar el
+       coste de rasterización en gama baja. */
     am-lyrics {
       --am-lyrics-highlight-color: #BF5AF2;
-      --lyplus-font-size-base: 34px;
-      --am-lyrics-line-height: 1.2;
-      --am-lyrics-line-spacing: 25px;
+      --lyplus-font-size-base: 30px;
+      --am-lyrics-line-height: 1.25;
+      --am-lyrics-line-spacing: 20px;
+      --am-lyrics-highlight-radius: 8px;
+      --am-lyrics-glow-radius: 2px;
+      --am-lyrics-inactive-scale: 0.96;
+      --am-lyrics-character-rise-peak: -0.75px;
+      --am-lyrics-progression-feather: 20px;
+      --am-lyrics-background-vocal-font-size: 0.6em;
+      --am-lyrics-background-vocal-spacing: 10px;
+    }
+    /* Compact preset para pantallas chicas */
+    @media (max-width: 520px) {
+      am-lyrics {
+        --am-lyrics-compact-font-size: 26px;
+        --am-lyrics-compact-line-spacing: 16px;
+      }
     }
   </style>
   <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
@@ -23,6 +39,8 @@
   <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
-  <am-lyrics autoscroll interpolate></am-lyrics>
+  <!-- interpolate DESHABILITADO para reducir coste de render (se fija
+       en el widget Dart: el.interpolate = false) -->
+  <am-lyrics autoscroll></am-lyrics>
 </body>
 </html>

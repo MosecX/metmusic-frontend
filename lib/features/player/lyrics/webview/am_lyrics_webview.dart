@@ -9,7 +9,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 ///
 /// am-lyrics NO tiene loop de animación interno. El consumidor
 /// debe empujar currentTime frame por frame. Este widget hace ese
-/// empuje con un Ticker a ~33 Hz (delta mínimo de 30ms).
+/// empuje con un Ticker a ~20 Hz (delta mínimo de 50ms); en gama
+/// baja reduce el trabajo del puente Dart-JS y am-lyrics compensa
+/// el salto con su interpolación.
 class AmLyricsWebView extends StatefulWidget {
   final String trackId;
   final String apiBase;
@@ -47,7 +49,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView>
   double _pendingMs = 0;
   double _lastSentMs = -1;
 
-  static const double _minDeltaMs = 30.0;
+  static const double _minDeltaMs = 50.0;
 
   @override
   void initState() {
@@ -157,7 +159,10 @@ class AmLyricsWebViewState extends State<AmLyricsWebView>
             el.setAttribute('api-token', $apiToken);
             el.setAttribute('highlight-color', $color);
             el.setAttribute('autoscroll', '');
-            el.setAttribute('interpolate', '');
+            // interpolate con default `true` en el componente: para
+            // apagarlo hay que asignar la propiedad, quitar el
+            // atributo no basta. Reduce bastante el coste de render.
+            el.interpolate = false;
             el.addEventListener('line-click', (e) => {
               AmLyricsBridge.postMessage(JSON.stringify({
                 type: 'line-click',
