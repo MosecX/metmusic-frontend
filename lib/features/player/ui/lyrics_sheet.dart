@@ -400,24 +400,36 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       ),
     );
 
-    // Karaoke con am-lyrics: sólo con `sync_level == word` y track con id.
+    // Karaoke con am-lyrics: con `sync_level == word` o `line` y track con id.
+    // El renderer nativo (`list`) se conserva como fallback para `none` y
+    // para cualquier caso sin track id.
     final webViewTrackId = state.track?.trackId ?? '';
     final useWebView =
-        level == LyricsSyncLevel.word && webViewTrackId.isNotEmpty;
+        (level == LyricsSyncLevel.word || level == LyricsSyncLevel.line) &&
+            webViewTrackId.isNotEmpty;
+    debugPrint('[lyrics_sheet] level=$level '
+        'trackId=${state.track?.trackId} useWebView=$useWebView '
+        'hasText=$hasText lines=${lines.length}');
     final Widget body = useWebView
         ? Column(
             children: [
               _header(synced: synced, landscape: landscape),
               Expanded(
-                child: AmLyricsWebView(
-                  key: _lyricsWebViewKey,
-                  trackId: webViewTrackId,
-                  apiBase: ref.watch(baseUrlHolderProvider).value,
-                  apiToken: ref.watch(apiTokenHolderProvider).value,
-                  initialPosition: Duration(milliseconds: positionMs),
-                  onLineTap: (position) =>
-                      ref.read(playerProvider.notifier).seek(position),
-                  onError: (msg) => debugPrint('[am-lyrics] error: $msg'),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: AmLyricsWebView(
+                    key: _lyricsWebViewKey,
+                    trackId: webViewTrackId,
+                    apiBase: ref.watch(baseUrlHolderProvider).value,
+                    apiToken: ref.watch(apiTokenHolderProvider).value,
+                    initialPosition: Duration(milliseconds: positionMs),
+                    onLineTap: (position) =>
+                        ref.read(playerProvider.notifier).seek(position),
+                    onError: (msg) => debugPrint('[am-lyrics] ERROR: $msg'),
+                    onDebug: (msg) => debugPrint('[am-lyrics] $msg'),
+                  ),
                 ),
               ),
             ],
