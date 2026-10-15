@@ -64,12 +64,27 @@ jobs:
             "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|DN:"
           done
 
-      # Sube los APKs al repo CDN. Sólo en push (no en PRs): el build usa
-      # --split-per-abi, así que hay un APK por ABI en la carpeta versionada
-      # y en latest/. El commit lleva [skip ci] para no detonar el workflow
-      # del repo CDN.
+      # Vía primaria: sube los APKs a GitHub Artifacts (gratis dentro de
+      # la cuota de GitHub). `continue-on-error` evita que el workflow
+      # aborte si el upload falla (límite de 500 MB, cuota de storage…):
+      # el step termina con outcome = 'failure' y se evalúa el fallback
+      # del paso siguiente.
+      - name: Upload APK artifacts
+        id: apk_artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+
+      # Fallback: sube los APKs al repo CDN SOLO si el upload a Artifacts
+      # falló (outcome == 'failure') y sólo en push (no en PRs). El script
+      # no cambia: el build usa --split-per-abi, así que hay un APK por ABI
+      # en la carpeta versionada y en latest/. El commit lleva [skip ci]
+      # para no detonar el workflow del repo CDN.
       - name: Publish APK to CDN repo
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.apk_artifact.outcome == 'failure'
         env:
           CDN_TOKEN: ${{ secrets.CDN_TOKEN }}
         run: |
@@ -90,12 +105,20 @@ jobs:
           git diff --cached --quiet || git commit -m "MetMusic APK ${VERSION} (${SHORT_SHA}) [skip ci]"
           git push
 
-      - name: Upload APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-release
-          path: build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: error
+      # Diagnóstico en el summary del run: qué camino se tomó y por qué.
+      - name: Report artifact status
+        if: always()
+        run: |
+          OUTCOME="${{ steps.apk_artifact.outcome }}"
+          echo "## APK Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact upload outcome: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "- Published to: GitHub Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "- Published to: CDN (Artifacts failed)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Not published (build ended before upload: $OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   release:
     name: Publish release
