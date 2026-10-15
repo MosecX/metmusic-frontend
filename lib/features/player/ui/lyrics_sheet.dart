@@ -262,13 +262,28 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       }
     }
 
-    // El fondo animado sólo corre en modo visualizer.
+    // El fondo animado solo corre en modo visualizer.
     final visualizer = settings.lyricsMode == LyricsMode.visualizer;
     if (visualizer) {
       _ensureVisualizerBg();
     } else {
       _visualizerBg?.stop();
     }
+
+    // Estado inicial del visualizer Kawarp DENTRO del WebView: en el
+    // primer frame el GlobalKey todavia no tiene State, asi que se
+    // envia al final del frame. El widget encola si la pagina no esta
+    // lista y deduplica repeticiones (esto se ejecuta en cada rebuild).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final webview = _lyricsWebViewKey.currentState;
+      if (webview == null) return;
+      webview.setVisualizerEnabled(visualizer);
+      final cover = ref.read(playerProvider.select((s) => s.artworkUrl));
+      if (cover.isNotEmpty) {
+        webview.setVisualizerCover(cover);
+      }
+    });
 
     ref.listen<Duration>(playerProvider.select((s) => s.position), (
       previous,
@@ -284,6 +299,18 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       next,
     ) {
       _lyricsWebViewKey.currentState?.updatePlaying(next);
+    });
+
+    // Cover del track para el visualizer Kawarp (canvas dentro del
+    // WebView). El estado inicial lo manda el addPostFrameCallback
+    // de arriba; este listener cubre los cambios de cancion.
+    ref.listen<String>(playerProvider.select((s) => s.artworkUrl), (
+      previous,
+      next,
+    ) {
+      if (next.isNotEmpty) {
+        _lyricsWebViewKey.currentState?.setVisualizerCover(next);
+      }
     });
 
     return DraggableScrollableSheet(
@@ -434,7 +461,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
                     apiBase: ref.watch(baseUrlHolderProvider).value,
                     apiToken: ref.watch(apiTokenHolderProvider).value,
                     initialPosition: Duration(milliseconds: positionMs),
-                    noBlur: true, // prueba: ver letras sin blur
+                    noBlur: true, // gama baja: sin blur en el shadow DOM
                     onLineTap: (position) =>
                         ref.read(playerProvider.notifier).seek(position),
                     onError: (msg) => debugPrint('[am-lyrics] ERROR: $msg'),

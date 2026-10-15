@@ -6,12 +6,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// WebView que hostea am-lyrics. A diferencia del diseño anterior,
-/// el loop de sincronización vive DENTRO del WebView (JS con
-/// requestAnimationFrame). Dart solo empuja updates cada ~250ms
-/// vía __setLyricsTime. Eso reduce el cruce del puente Dart-JS de
-/// 20-33 Hz a 4 Hz, que es la diferencia entre lag y fluidez en
-/// gama baja.
+/// WebView que hostea am-lyrics. El loop de sincronizacion vive DENTRO
+/// del WebView (JS con requestAnimationFrame). Dart solo empuja updates
+/// cada ~250ms via __setLyricsTime. Eso reduce el cruce del puente
+/// Dart-JS de 20-33 Hz a 4 Hz, que es la diferencia entre lag y
+/// fluidez en gama baja.
+///
+/// Tambien controla el visualizer Kawarp (canvas dentro del WebView,
+/// estilo Monochrome): initVisualizer/setVisualizerEnabled/
+/// setVisualizerCover. Las peticiones hechas antes de que la pagina
+/// esté "ready" se encolan y se aplican al llegar el ready.
 class AmLyricsWebView extends StatefulWidget {
   final String trackId;
   final String apiBase;
@@ -30,7 +34,7 @@ class AmLyricsWebView extends StatefulWidget {
     required this.apiToken,
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
-    this.noBlur = false,
+    this.noBlur = true,
     this.onLineTap,
     this.onError,
     this.onDebug,
@@ -50,10 +54,47 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   double _pendingMs = 0;
   bool _pendingPlaying = false;
 
-  /// Cada cuánto se empuja el tiempo al WebView. 250ms = 4 Hz.
-  /// El loop rAF interno interpola entre pushes, así que esto no
+  // Estado del visualizer Kawarp: lo pedido vs. lo ya enviado al
+  // WebView. "Requested" se guarda aunque la pagina no este lista;
+  // "sent" evita reenviar el mismo estado en cada rebuild.
+  String? _requestedCover;
+  String? _sentCover;
+  bool? _requestedVisualizer;
+  bool? _sentVisualizer;
+
+  /// Cada cuanto se empuja el tiempo al WebView. 250ms = 4 Hz.
+  /// El loop rAF interno interpola entre pushes, asi que esto no
   /// afecta a la fluidez visual — solo al coste del puente.
   static const Duration _pushInterval = Duration(milliseconds: 250);
+
+  /// CSS que Monochrome inyecta en el shadowRoot de am-lyrics
+  /// (applyFullscreenLyricsShadowTweaks): transiciones de linea,
+  /// opacidad del texto inactivo y scrollbar oculta.
+  static const String _monochromeShadowCss = '''
+.lyrics-line {
+  transform-origin: left center;
+  transition: opacity 0.42s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1) var(--lyrics-line-delay, 0ms), filter 0.48s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.lyrics-line:not(.active):not(.pre-active) {
+  opacity: 0.44;
+}
+.lyrics-line-container {
+  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease, color 0.3s ease !important;
+}
+.lyrics-line.active .lyrics-line-container,
+.lyrics-line.pre-active .lyrics-line-container {
+  transition: transform 0.56s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.22s ease, color 0.22s ease !important;
+}
+.lyrics-line.active .lyrics-line-container {
+  transform: scale(1.015);
+}
+.lyrics-container {
+  scrollbar-width: none !important;
+}
+.lyrics-container::-webkit-scrollbar {
+  width: 0 !important; height: 0 !important; display: none !important;
+}
+''';
 
   @override
   void initState() {
@@ -79,6 +120,14 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
               widget.onDebug?.call('am-lyrics ready');
               _startPushTimer();
               _pushTime();
+              // Visualizer: init primero (crea+arranca Kawarp) y luego
+              // aplicar el estado encolado (en modo normal lo para y
+              // oculta el canvas al instante). Cover y estilo Monochrome
+              // tambien se encolan hasta aqui.
+              unawaited(initVisualizer());
+              unawaited(_applyVisualizerEnabled());
+              unawaited(_flushCover());
+              unawaited(_injectStyle(_monochromeShadowCss));
               break;
             case 'error':
               final message = (data['message'] as String?) ?? 'unknown';
@@ -140,7 +189,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     _configureTimeout = Timer(const Duration(seconds: 5), () {
       if (!_ready) {
         widget.onError?.call(
-          'timeout: am-lyrics no se registró en 5s. '
+          'timeout: am-lyrics no se registro en 5s. '
           'Revisar carga de am-lyrics.iife.js en el WebView.',
         );
       }
@@ -171,7 +220,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
         if ($noBlur) {
           el.setAttribute('no-blur', '');
         } else {
-          // Toggle real: el HTML lo trae por defecto, así que para
+          // Toggle real: el HTML lo trae por defecto, asi que para
           // poder volver a blur hay que quitar el atributo.
           el.removeAttribute('no-blur');
         }
@@ -192,8 +241,16 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     ''');
   }
 
+  /// Inyecta CSS en el shadowRoot de am-lyrics (patron Monochrome).
+  Future<void> _injectStyle(String css) async {
+    final jsonCss = jsonEncode(css);
+    await _ctrl.runJavaScript(
+      'window.__injectLyricsStyle && window.__injectLyricsStyle($jsonCss);',
+    );
+  }
+
   /// El widget padre llama esto cada vez que el player reporta
-  /// nueva posición. Solo guarda; el Timer empuja cada 250ms.
+  /// nueva posicion. Solo guarda; el Timer empuja cada 250ms.
   void updatePosition(Duration position) {
     _pendingMs = position.inMilliseconds.toDouble();
   }
@@ -203,7 +260,51 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     _pendingPlaying = playing;
     // Empujar inmediatamente para arrancar/parar el rAF sin esperar
     // al siguiente tick del Timer.
-    _pushTime();
+    unawaited(_pushTime());
+  }
+
+  /// URL del artwork para el visualizer Kawarp. Se encola hasta que
+  /// la pagina este lista y se deduplica para no reenviar la misma.
+  Future<void> setVisualizerCover(String coverUrl) async {
+    if (coverUrl == _requestedCover) return;
+    _requestedCover = coverUrl;
+    await _flushCover();
+  }
+
+  Future<void> _flushCover() async {
+    final url = _requestedCover;
+    if (!_ready || url == null || url == _sentCover) return;
+    _sentCover = url;
+    await _ctrl.runJavaScript(
+      'window.__setVisualizerCover && '
+      'window.__setVisualizerCover(${jsonEncode(url)});',
+    );
+  }
+
+  /// Activa/desactiva el canvas Kawarp (solo en modo visualizer).
+  /// Se encola hasta ready y se deduplica.
+  Future<void> setVisualizerEnabled(bool enabled) async {
+    if (enabled == _requestedVisualizer) return;
+    _requestedVisualizer = enabled;
+    await _applyVisualizerEnabled();
+  }
+
+  Future<void> _applyVisualizerEnabled() async {
+    final enabled = _requestedVisualizer;
+    if (!_ready || enabled == null || enabled == _sentVisualizer) return;
+    _sentVisualizer = enabled;
+    await _ctrl.runJavaScript(
+      'window.__setVisualizerEnabled && '
+      'window.__setVisualizerEnabled($enabled);',
+    );
+  }
+
+  /// Inicializa el visualizer Kawarp dentro del WebView. Se llama
+  /// cuando el bridge reporta 'ready'.
+  Future<void> initVisualizer() async {
+    await _ctrl.runJavaScript(
+      'window.__initVisualizer && window.__initVisualizer();',
+    );
   }
 
   @override
@@ -211,8 +312,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
         controller: _ctrl,
         // Sin esto, el VerticalDragGestureRecognizer del modal bottom sheet
         // gana la arena de gestos y el WebView nunca recibe los touchmove:
-        // el scroll manual de las letras no funcionaría. Eager hace que el
-        // WebView reclame los gestos que empiezan dentro de su área (para
+        // el scroll manual de las letras no funcionaria. Eager hace que el
+        // WebView reclame los gestos que empiezan dentro de su area (para
         // cerrar la hoja, arrastrar desde el header).
         gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{
           Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),

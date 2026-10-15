@@ -12,7 +12,7 @@
       -webkit-user-select: none; user-select: none;
     }
     am-lyrics {
-      /* Colores base — warm off-white, no morado */
+      /* Colores base — warm off-white, no morado (look Monochrome) */
       --am-lyrics-highlight-color: #f6f4ef;
       --lyplus-active-color: #f6f4ef;
       --lyplus-text-color: rgba(246, 244, 239, 0.08);
@@ -55,12 +55,23 @@
   <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
-  <!-- Blur activo: el estilo Monochrome aplica blur a las letras
-       inactivas (efecto firma). no-blur NO va aquí ni en Dart. -->
+  <!-- Visualizer Kawarp (Monochrome): canvas fullscreen DETRAS de las
+       letras. z-index:-1 porque un position:fixed con z-index:0 pintaria
+       POR ENCIMA del contenido estatico de am-lyrics. Arranca oculto:
+       solo lo muestra Dart en modo visualizer. -->
+  <canvas id="kawarp-canvas"
+          style="position:fixed; inset:0; z-index:-1; pointer-events:none; display:none;"></canvas>
+
+  <!-- Blur desactivado: optimizacion de rendimiento para gama baja
+       (se puede togglear desde Dart via noBlur). -->
   <am-lyrics autoscroll interpolate no-blur></am-lyrics>
 
+  <!-- @kawarp/core empaquetado como IIFE: expone window.Kawarp. -->
+  <script src="./kawarp-core.js"></script>
+  <script src="./kawarp.js"></script>
+
   <script>
-    // Loop de interpolación de tiempo DENTRO del WebView.
+    // Loop de interpolacion de tiempo DENTRO del WebView.
     // Dart solo empuja updates cada ~250ms. Este loop interpola
     // con requestAnimationFrame entre updates, sin cruzar el
     // puente en cada frame.
@@ -68,7 +79,7 @@
       const el = document.querySelector('am-lyrics');
 
       let baseMs = 0;    // Tiempo base (recibido de Dart)
-      let basePerf = 0;  // performance.now() cuando se recibió
+      let basePerf = 0;  // performance.now() cuando se recibio
       let playing = false;
       let rafId = null;
 
@@ -96,8 +107,8 @@
         }
       }
 
-      // Exuesto para que Dart lo llame vía runJavaScript.
-      // Llamar cada ~250ms durante reproducción. NO cada frame.
+      // Expuesto para que Dart lo llame via runJavaScript.
+      // Llamar cada ~250ms durante reproduccion. NO cada frame.
       window.__setLyricsTime = function(ms, isPlaying) {
         baseMs = ms;
         basePerf = performance.now();
@@ -110,17 +121,56 @@
           playing = false;
           stopLoop();
         }
-        // Si no está playing: actualización puntual (seek, pause),
+        // Si no esta playing: actualizacion puntual (seek, pause),
         // no se arranca loop.
       };
 
-      // Ajuste manual de offset. Persistido desde Dart.
-      window.__setLyricsOffset = function(offsetMs) {
-        // El offset se aplica restando al tiempo que Dart envía.
-        // Se guarda para la próxima vez que Dart llame __setLyricsTime.
-        window.__lyricsOffsetMs = offsetMs;
+      // Inyecta CSS en el shadowRoot de am-lyrics (patron Monochrome:
+      // applyFullscreenLyricsShadowTweaks).
+      window.__injectLyricsStyle = function(css) {
+        const root = el.shadowRoot || el;
+        // querySelector en vez de getElementById: no todos los
+        // shadow roots exponen getElementById.
+        let s = root.querySelector('#metmusic-lyrics-style');
+        if (!s) {
+          s = document.createElement('style');
+          s.id = 'metmusic-lyrics-style';
+          root.appendChild(s);
+        }
+        s.textContent = css;
       };
     })();
+
+    // ---- Visualizer Kawarp: control desde Dart ----
+
+    window.__setVisualizerCover = function(url) {
+      const vis = window.__kawarpVisualizer;
+      // Sin check de isInitialized: loadCover encola el cover si el
+      // visualizer aun no existe y lo aplica al terminar el init.
+      if (vis) vis.loadCover(url);
+    };
+
+    window.__initVisualizer = function() {
+      const canvas = document.getElementById('kawarp-canvas');
+      if (canvas && window.__kawarpVisualizer) {
+        window.__kawarpVisualizer.init(canvas);
+      }
+    };
+
+    window.__setVisualizerEnabled = function(enabled) {
+      const canvas = document.getElementById('kawarp-canvas');
+      if (!canvas) return;
+      canvas.style.display = enabled ? 'block' : 'none';
+      const vis = window.__kawarpVisualizer;
+      if (!vis) return;
+      if (enabled) {
+        vis.init(canvas);            // idempotente
+        if (vis.kawarp) vis.kawarp.start();
+      } else if (vis.kawarp) {
+        // Oculto: parar el rAF de WebGL para no gastar GPU en gama baja.
+        vis.kawarp.stop();
+      }
+    };
   </script>
 </body>
 </html>
