@@ -29,9 +29,10 @@
       --lyplus-font-size-base: clamp(34px, 3vw, 52px);
       --lyplus-padding-line: 8px;
 
-      /* Blur de letras inactivas — efecto firma de Monochrome */
-      --lyplus-blur-amount: 0.16em;
-      --lyplus-blur-amount-near: 0.085em;
+      /* Blur interno de am-lyrics anulado: el unico blur visible es
+         el que inyecta Dart en el shadowRoot (coste acotado). */
+      --lyplus-blur-amount: 0 !important;
+      --lyplus-blur-amount-near: 0 !important;
 
       /* Layout */
       --lyrics-scroll-padding-top: 18%;
@@ -62,8 +63,10 @@
   <canvas id="kawarp-canvas"
           style="position:fixed; inset:0; z-index:-1; pointer-events:none; display:none;"></canvas>
 
-  <!-- Blur desactivado: optimizacion de rendimiento para gama baja
-       (se puede togglear desde Dart via noBlur). -->
+  <!-- no-blur anula el sistema de blur NATIVO del componente (reglas
+       internas, ventana prev/next-N, JS progresivo): todo el coste
+       queda en el CSS que Dart inyecta en el shadowRoot (blur solo en
+       pre-active). interpolate lo decide el script de abajo (isLowEnd). -->
   <am-lyrics autoscroll interpolate no-blur></am-lyrics>
 
   <!-- @kawarp/core empaquetado como IIFE: expone window.Kawarp. -->
@@ -83,14 +86,36 @@
       let playing = false;
       let rafId = null;
 
+      // Throttle a 30fps: el rAF sigue a cadencia de pantalla, pero
+      // currentTime solo se escribe 30 veces por segundo (cada write
+      // invalida estilos y dispara recálculo). Mantiene el coste
+      // bajo con o sin blur.
+      const FRAME_INTERVAL = 1000 / 30;
+      let lastFrameMs = 0;
+
+      // Gama baja: pocos núcleos o poca RAM -> interpolate OFF.
+      // El default de Lit es true, así que hay que QUITAR el
+      // atributo (el callback post-upgrade lo pone a false) Y forzar
+      // la propiedad, que es lo que dejó probado la Task 4.
+      const isLowEnd =
+        (navigator.hardwareConcurrency || 8) <= 4 ||
+        (navigator.deviceMemory || 8) <= 4;
+      window.__isLowEnd = isLowEnd;
+      if (isLowEnd) {
+        el.removeAttribute('interpolate');
+        el.interpolate = false;
+      }
+
       function tick() {
         if (!playing) {
           rafId = null;
           return;
         }
         const now = performance.now();
-        const elapsed = now - basePerf;
-        el.currentTime = baseMs + elapsed;
+        if (now - lastFrameMs >= FRAME_INTERVAL) {
+          lastFrameMs = now;
+          el.currentTime = baseMs + (now - basePerf);
+        }
         rafId = requestAnimationFrame(tick);
       }
 

@@ -67,27 +67,79 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   /// afecta a la fluidez visual — solo al coste del puente.
   static const Duration _pushInterval = Duration(milliseconds: 250);
 
-  /// CSS que Monochrome inyecta en el shadowRoot de am-lyrics
-  /// (applyFullscreenLyricsShadowTweaks): transiciones de linea,
-  /// opacidad del texto inactivo y scrollbar oculta.
+  /// CSS inyectado en el shadowRoot de am-lyrics — "blur con coste
+  /// controlado" (Apple Music look): tipografia SF, contain por linea,
+  /// blur SOLO en la linea pre-active, lejanas sin filter con
+  /// content-visibility y will-change acotado a active/pre-active.
+  ///
+  /// Notas de especificidad (gamma): las reglas que deben ganarle a
+  /// `:host([no-blur]) .lyrics-line` (0,3,0 con !important, que fija
+  /// filter:none y transition-property sin filter) usan el prefijo
+  /// `.lyrics-container ` para subir a (0,4,0): la transicion base, el
+  /// filter de pre-active y el transform de la linea activa. Sin eso,
+  /// el blur inyectado seria invisible con el atributo no-blur puesto.
   static const String _monochromeShadowCss = '''
+/* Tipografía Apple Music. */
+.lyrics-line,
+.lyrics-line-container,
+.lyrics-line span,
+.lyrics-line-container span,
+[class="lyric"] {
+  font-weight: 600 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif !important;
+  letter-spacing: -0.025em !important;
+}
+
+/* Contain por línea. Aísla invalidación de estilos: cuando el
+   span de una palabra cambia, el navegador no recalcula el resto
+   del árbol. Es la optimización estructural más importante. */
 .lyrics-line {
+  contain: layout style paint;
   transform-origin: left center;
-  transition: opacity 0.42s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1) var(--lyrics-line-delay, 0ms), filter 0.48s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
-.lyrics-line:not(.active):not(.pre-active) {
-  opacity: 0.44;
+.lyrics-container .lyrics-line {
+  transition:
+    opacity 0.32s ease,
+    filter 0.32s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
-.lyrics-line-container {
-  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease, color 0.3s ease !important;
+
+/* Líneas lejanas: sin blur, solo opacidad reducida. .lyrics-gap va
+   excluido para no atenuar los puntos instrumentales. */
+.lyrics-line:not(.active):not(.pre-active):not(.lyrics-gap) {
+  opacity: 0.32 !important;
+  filter: none !important;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
 }
-.lyrics-line.active .lyrics-line-container,
-.lyrics-line.pre-active .lyrics-line-container {
-  transition: transform 0.56s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.22s ease, color 0.22s ease !important;
+
+/* Línea previa: blur suave, opacidad intermedia. */
+.lyrics-container .lyrics-line.pre-active {
+  opacity: 0.62 !important;
+  filter: blur(0.045em) !important;
 }
-.lyrics-line.active .lyrics-line-container {
-  transform: scale(1.015);
+
+/* Línea activa: sin blur, opacidad completa. */
+.lyrics-line.active {
+  opacity: 1 !important;
+  filter: none !important;
 }
+
+/* will-change solo en la línea activa. Las demás no lo
+   necesitan porque no están animándose en cada frame. */
+.lyrics-line.active,
+.lyrics-line.pre-active {
+  will-change: transform, opacity, filter;
+}
+
+/* Animación de entrada de la línea activa: solo transform, para
+   que sea compositable sin repintar. */
+.lyrics-container .lyrics-line.active .lyrics-line-container {
+  transform: scale(1.018);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* Scroll sin barra. */
 .lyrics-container {
   scrollbar-width: none !important;
 }
@@ -216,7 +268,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
         el.setAttribute('api-token', $apiToken);
         el.setAttribute('highlight-color', $color);
         el.setAttribute('autoscroll', '');
-        el.setAttribute('interpolate', '');
+        // interpolate lo decide index.html (logica isLowEnd): no se
+        // toca aqui, si no se re-encenderia en gama baja.
         if ($noBlur) {
           el.setAttribute('no-blur', '');
         } else {
