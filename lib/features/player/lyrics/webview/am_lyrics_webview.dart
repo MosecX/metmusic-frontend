@@ -2,22 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// WebView que hostea el Web Component am-lyrics.
-///
-/// am-lyrics NO tiene loop de animación interno. El consumidor
-/// debe empujar currentTime frame por frame. Este widget hace ese
-/// empuje con un Ticker a ~20 Hz (delta mínimo de 50ms); en gama
-/// baja reduce el trabajo del puente Dart-JS y am-lyrics compensa
-/// el salto con su interpolación.
+/// WebView que hostea am-lyrics. A diferencia del diseño anterior,
+/// el loop de sincronización vive DENTRO del WebView (JS con
+/// requestAnimationFrame). Dart solo empuja updates cada ~250ms
+/// vía __setLyricsTime. Eso reduce el cruce del puente Dart-JS de
+/// 20-33 Hz a 4 Hz, que es la diferencia entre lag y fluidez en
+/// gama baja.
 class AmLyricsWebView extends StatefulWidget {
   final String trackId;
   final String apiBase;
   final String apiToken;
   final String highlightColor;
   final Duration initialPosition;
+  final bool noBlur;
   final ValueChanged<Duration>? onLineTap;
   final ValueChanged<String>? onError;
   final ValueChanged<String>? onDebug;
@@ -29,6 +28,7 @@ class AmLyricsWebView extends StatefulWidget {
     required this.apiToken,
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
+    this.noBlur = true,
     this.onLineTap,
     this.onError,
     this.onDebug,
@@ -38,18 +38,20 @@ class AmLyricsWebView extends StatefulWidget {
   State<AmLyricsWebView> createState() => AmLyricsWebViewState();
 }
 
-class AmLyricsWebViewState extends State<AmLyricsWebView>
-    with SingleTickerProviderStateMixin {
+class AmLyricsWebViewState extends State<AmLyricsWebView> {
   late final WebViewController _ctrl;
-  late final Ticker _ticker;
+  Timer? _pushTimer;
   bool _ready = false;
   bool _configured = false;
   Timer? _configureTimeout;
 
   double _pendingMs = 0;
-  double _lastSentMs = -1;
+  bool _pendingPlaying = false;
 
-  static const double _minDeltaMs = 50.0;
+  /// Cada cuánto se empuja el tiempo al WebView. 250ms = 4 Hz.
+  /// El loop rAF interno interpola entre pushes, así que esto no
+  /// afecta a la fluidez visual — solo al coste del puente.
+  static const Duration _pushInterval = Duration(milliseconds: 250);
 
   @override
   void initState() {
@@ -73,6 +75,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView>
               _ready = true;
               _configureTimeout?.cancel();
               widget.onDebug?.call('am-lyrics ready');
+              _startPushTimer();
+              _pushTime();
               break;
             case 'error':
               final message = (data['message'] as String?) ?? 'unknown';
@@ -98,23 +102,26 @@ class AmLyricsWebViewState extends State<AmLyricsWebView>
           );
         },
       ));
-
-    _ticker = createTicker(_onTick)..start();
   }
 
   @override
   void dispose() {
+    _pushTimer?.cancel();
     _configureTimeout?.cancel();
-    _ticker.dispose();
     super.dispose();
   }
 
-  void _onTick(Duration _) {
+  void _startPushTimer() {
+    _pushTimer?.cancel();
+    _pushTimer = Timer.periodic(_pushInterval, (_) => _pushTime());
+  }
+
+  Future<void> _pushTime() async {
     if (!_ready) return;
-    if ((_pendingMs - _lastSentMs).abs() < _minDeltaMs) return;
-    _lastSentMs = _pendingMs;
-    _ctrl.runJavaScript(
-      'window.__amLyrics && (window.__amLyrics.currentTime = $_pendingMs);',
+    final ms = _pendingMs;
+    final playing = _pendingPlaying ? 'true' : 'false';
+    await _ctrl.runJavaScript(
+      'window.__setLyricsTime && window.__setLyricsTime($ms, $playing);',
     );
   }
 
@@ -126,64 +133,75 @@ class AmLyricsWebViewState extends State<AmLyricsWebView>
     final apiBase = jsonEncode(widget.apiBase);
     final apiToken = jsonEncode(widget.apiToken);
     final color = jsonEncode(widget.highlightColor);
+    final noBlur = widget.noBlur ? 'true' : 'false';
 
     _configureTimeout = Timer(const Duration(seconds: 5), () {
       if (!_ready) {
         widget.onError?.call(
           'timeout: am-lyrics no se registró en 5s. '
-          'Revisar import de am-lyrics.min.js en el WebView.',
+          'Revisar carga de am-lyrics.iife.js en el WebView.',
         );
       }
     });
 
     await _ctrl.runJavaScript('''
-      (function() {
+      customElements.whenDefined('am-lyrics').then(() => {
         const report = (type, message) => {
           AmLyricsBridge.postMessage(JSON.stringify({
             type: type, message: message
           }));
         };
-        report('debug', 'configure start, readyState=' +
-                document.readyState);
+        report('debug', 'am-lyrics custom element defined');
         const el = document.querySelector('am-lyrics');
         if (!el) {
-          report('error', 'am-lyrics no está en el DOM');
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'error',
+            message: 'am-lyrics element not in DOM'
+          }));
           return;
         }
-        report('debug', 'am-lyrics element found');
-        customElements.whenDefined('am-lyrics')
-          .then(() => {
-            report('debug', 'am-lyrics custom element defined');
-            el.setAttribute('track-id', $trackId);
-            el.setAttribute('api-base', $apiBase);
-            el.setAttribute('api-token', $apiToken);
-            el.setAttribute('highlight-color', $color);
-            el.setAttribute('autoscroll', '');
-            // interpolate con default `true` en el componente: para
-            // apagarlo hay que asignar la propiedad, quitar el
-            // atributo no basta. Reduce bastante el coste de render.
-            el.interpolate = false;
-            el.addEventListener('line-click', (e) => {
-              AmLyricsBridge.postMessage(JSON.stringify({
-                type: 'line-click',
-                timestamp: e.detail.timestamp
-              }));
-            });
-            window.__amLyrics = el;
-            report('ready', 'configured');
-          })
-          .catch((err) => {
-            report('error', 'whenDefined failed: ' + String(err));
-          });
-      })();
+        el.setAttribute('track-id', $trackId);
+        el.setAttribute('api-base', $apiBase);
+        el.setAttribute('api-token', $apiToken);
+        el.setAttribute('highlight-color', $color);
+        el.setAttribute('autoscroll', '');
+        el.setAttribute('interpolate', '');
+        if ($noBlur) {
+          el.setAttribute('no-blur', '');
+        } else {
+          // Toggle real: el HTML lo trae por defecto, así que para
+          // poder volver a blur hay que quitar el atributo.
+          el.removeAttribute('no-blur');
+        }
+        el.addEventListener('line-click', (e) => {
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'line-click',
+            timestamp: e.detail.timestamp
+          }));
+        });
+        window.__amLyrics = el;
+        AmLyricsBridge.postMessage(JSON.stringify({ type: 'ready' }));
+      }).catch((err) => {
+        AmLyricsBridge.postMessage(JSON.stringify({
+          type: 'error',
+          message: 'whenDefined failed: ' + String(err)
+        }));
+      });
     ''');
   }
 
   /// El widget padre llama esto cada vez que el player reporta
-  /// nueva posición. Solo guarda; el Ticker decide cuándo cruzar
-  /// el puente.
+  /// nueva posición. Solo guarda; el Timer empuja cada 250ms.
   void updatePosition(Duration position) {
     _pendingMs = position.inMilliseconds.toDouble();
+  }
+
+  /// El widget padre llama esto cuando cambia el estado de play/pause.
+  void updatePlaying(bool playing) {
+    _pendingPlaying = playing;
+    // Empujar inmediatamente para arrancar/parar el rAF sin esperar
+    // al siguiente tick del Timer.
+    _pushTime();
   }
 
   @override

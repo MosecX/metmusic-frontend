@@ -11,8 +11,6 @@
       -webkit-tap-highlight-color: transparent;
       -webkit-user-select: none; user-select: none;
     }
-    /* Optimización: reducir tamaño de fuente y radios para bajar el
-       coste de rasterización en gama baja. */
     am-lyrics {
       --am-lyrics-highlight-color: #BF5AF2;
       --lyplus-font-size-base: 30px;
@@ -23,10 +21,7 @@
       --am-lyrics-inactive-scale: 0.96;
       --am-lyrics-character-rise-peak: -0.75px;
       --am-lyrics-progression-feather: 20px;
-      --am-lyrics-background-vocal-font-size: 0.6em;
-      --am-lyrics-background-vocal-spacing: 10px;
     }
-    /* Compact preset para pantallas chicas */
     @media (max-width: 520px) {
       am-lyrics {
         --am-lyrics-compact-font-size: 26px;
@@ -39,8 +34,73 @@
   <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
-  <!-- interpolate DESHABILITADO para reducir coste de render (se fija
-       en el widget Dart: el.interpolate = false) -->
-  <am-lyrics autoscroll></am-lyrics>
+  <!-- no-blur desactiva los filtros de blur del shadow DOM. Es la
+       optimización más grande para gama baja. Se activa desde Dart
+       vía el bridge. -->
+  <am-lyrics autoscroll interpolate no-blur></am-lyrics>
+
+  <script>
+    // Loop de interpolación de tiempo DENTRO del WebView.
+    // Dart solo empuja updates cada ~250ms. Este loop interpola
+    // con requestAnimationFrame entre updates, sin cruzar el
+    // puente en cada frame.
+    (function() {
+      const el = document.querySelector('am-lyrics');
+
+      let baseMs = 0;    // Tiempo base (recibido de Dart)
+      let basePerf = 0;  // performance.now() cuando se recibió
+      let playing = false;
+      let rafId = null;
+
+      function tick() {
+        if (!playing) {
+          rafId = null;
+          return;
+        }
+        const now = performance.now();
+        const elapsed = now - basePerf;
+        el.currentTime = baseMs + elapsed;
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function startLoop() {
+        if (rafId !== null) return;
+        basePerf = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function stopLoop() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+      }
+
+      // Exuesto para que Dart lo llame vía runJavaScript.
+      // Llamar cada ~250ms durante reproducción. NO cada frame.
+      window.__setLyricsTime = function(ms, isPlaying) {
+        baseMs = ms;
+        basePerf = performance.now();
+        el.currentTime = ms;
+
+        if (isPlaying && !playing) {
+          playing = true;
+          startLoop();
+        } else if (!isPlaying && playing) {
+          playing = false;
+          stopLoop();
+        }
+        // Si no está playing: actualización puntual (seek, pause),
+        // no se arranca loop.
+      };
+
+      // Ajuste manual de offset. Persistido desde Dart.
+      window.__setLyricsOffset = function(offsetMs) {
+        // El offset se aplica restando al tiempo que Dart envía.
+        // Se guarda para la próxima vez que Dart llame __setLyricsTime.
+        window.__lyricsOffsetMs = offsetMs;
+      };
+    })();
+  </script>
 </body>
 </html>

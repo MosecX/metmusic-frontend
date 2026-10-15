@@ -277,6 +277,15 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       _lyricsWebViewKey.currentState?.updatePosition(next);
     });
 
+    // El loop rAF vive dentro del WebView: Dart solo le avisa si hay
+    // que interpolar (playing) o congelar el tiempo (pausa/seek).
+    ref.listen<bool>(playerProvider.select((s) => s.playing), (
+      previous,
+      next,
+    ) {
+      _lyricsWebViewKey.currentState?.updatePlaying(next);
+    });
+
     return DraggableScrollableSheet(
       initialChildSize: 1,
       minChildSize: 0.4,
@@ -425,6 +434,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
                     apiBase: ref.watch(baseUrlHolderProvider).value,
                     apiToken: ref.watch(apiTokenHolderProvider).value,
                     initialPosition: Duration(milliseconds: positionMs),
+                    noBlur: true, // optimización para gama baja
                     onLineTap: (position) =>
                         ref.read(playerProvider.notifier).seek(position),
                     onError: (msg) => debugPrint('[am-lyrics] ERROR: $msg'),
