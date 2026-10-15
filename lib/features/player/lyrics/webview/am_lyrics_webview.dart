@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -205,5 +207,15 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   }
 
   @override
-  Widget build(BuildContext context) => WebViewWidget(controller: _ctrl);
+  Widget build(BuildContext context) => WebViewWidget(
+        controller: _ctrl,
+        // Sin esto, el VerticalDragGestureRecognizer del modal bottom sheet
+        // gana la arena de gestos y el WebView nunca recibe los touchmove:
+        // el scroll manual de las letras no funcionaría. Eager hace que el
+        // WebView reclame los gestos que empiezan dentro de su área (para
+        // cerrar la hoja, arrastrar desde el header).
+        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{
+          Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+        },
+      );
 }
