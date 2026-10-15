@@ -12,21 +12,42 @@
       -webkit-user-select: none; user-select: none;
     }
     am-lyrics {
-      --am-lyrics-highlight-color: #BF5AF2;
-      --lyplus-font-size-base: 30px;
-      --am-lyrics-line-height: 1.25;
-      --am-lyrics-line-spacing: 20px;
+      /* Colores base — warm off-white, no morado */
+      --am-lyrics-highlight-color: #f6f4ef;
+      --lyplus-active-color: #f6f4ef;
+      --lyplus-text-color: rgba(246, 244, 239, 0.08);
+
+      /* Mapeo a los nombres REALES del componente: --lyplus-active-color
+         y --lyplus-text-color de arriba no los consume am-lyrics. Estos
+         dos sí: --lyplus-text-primary (activo) y --lyplus-text-secondary
+         (inactivo al 8 % como en Monochrome; el default del :host es
+         color-mix al 55 %). */
+      --lyplus-text-primary: #f6f4ef;
+      --lyplus-text-secondary: rgba(246, 244, 239, 0.08);
+
+      /* Tipografía responsiva */
+      --lyplus-font-size-base: clamp(34px, 3vw, 52px);
+      --lyplus-padding-line: 8px;
+
+      /* Blur de letras inactivas — efecto firma de Monochrome */
+      --lyplus-blur-amount: 0.16em;
+      --lyplus-blur-amount-near: 0.085em;
+
+      /* Layout */
+      --lyrics-scroll-padding-top: 18%;
+
+      /* Escala y glow suaves para no romper el look */
       --am-lyrics-highlight-radius: 8px;
       --am-lyrics-glow-radius: 2px;
       --am-lyrics-inactive-scale: 0.96;
-      --am-lyrics-character-rise-peak: -0.75px;
       --am-lyrics-progression-feather: 20px;
-    }
-    @media (max-width: 520px) {
-      am-lyrics {
-        --am-lyrics-compact-font-size: 26px;
-        --am-lyrics-compact-line-spacing: 16px;
-      }
+
+      /* Base del contenedor */
+      line-height: 1.32;
+      letter-spacing: -0.04em;
+      isolation: isolate;
+      height: 100%;
+      width: 100%;
     }
   </style>
   <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
@@ -34,9 +55,8 @@
   <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
-  <!-- no-blur desactiva los filtros de blur del shadow DOM. Es la
-       optimización más grande para gama baja. Se activa desde Dart
-       vía el bridge. -->
+  <!-- Blur activo: el estilo Monochrome aplica blur a las letras
+       inactivas (efecto firma). no-blur NO va aquí ni en Dart. -->
   <am-lyrics autoscroll interpolate no-blur></am-lyrics>
 
   <script>

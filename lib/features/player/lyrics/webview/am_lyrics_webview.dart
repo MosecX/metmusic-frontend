@@ -28,7 +28,7 @@ class AmLyricsWebView extends StatefulWidget {
     required this.apiToken,
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
-    this.noBlur = true,
+    this.noBlur = false,
     this.onLineTap,
     this.onError,
     this.onDebug,
