@@ -15,7 +15,6 @@ import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../services/service_providers.dart';
 import '../lyrics/webview/am_lyrics_webview.dart';
-import '../models/player_state.dart';
 import '../providers/lyrics_provider.dart';
 import '../providers/player_provider.dart';
 import 'lyrics/lyrics_gap.dart';
@@ -205,10 +204,17 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(playerProvider);
+    // Record sin la posición: el `ref.watch(position)` de abajo es el que
+    // decide los repintados de la hoja (5 Hz); el resto cambia poco.
+    final (trackId, durationMs, artworkUrl) = ref.watch(
+      playerProvider.select((s) => (
+            s.track?.trackId ?? '',
+            s.duration.inMilliseconds,
+            s.artworkUrl,
+          )),
+    );
     final positionMs =
         ref.watch(playerProvider.select((s) => s.position)).inMilliseconds;
-    final trackId = state.track?.trackId ?? '';
     final lyricsAsync = ref.watch(lyricsProvider(trackId));
 
     final lyrics = lyricsAsync.valueOrNull;
@@ -220,9 +226,8 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     // Las claves deben existir ANTES de programar el scroll a la fila
     // objetivo (al abrir a media canción la lista es perezosa y se estima).
     _lineRow.clear();
-    final rows = synced
-        ? _buildRows(lines, lyrics, state.duration.inMilliseconds)
-        : const <_LyricsRow>[];
+    final rows =
+        synced ? _buildRows(lines, lyrics, durationMs) : const <_LyricsRow>[];
     _syncRowKeys(rows.length);
 
     // `activeLineIndex` sólo se enciende mientras la línea suena; en los
@@ -265,7 +270,8 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
       builder: (context, scrollController) {
         _sheetController = scrollController;
         return _lyricsScrollView(
-          state: state,
+          artwork: artworkUrl,
+          trackId: trackId,
           lyrics: lyrics,
           lines: lines,
           level: level,
@@ -286,7 +292,8 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   // -------------------------------------------------------------------------
 
   Widget _lyricsScrollView({
-    required MetPlayerState state,
+    required String artwork,
+    required String trackId,
     required Lyrics? lyrics,
     required List<SyncedLine> lines,
     required LyricsSyncLevel level,
@@ -298,7 +305,6 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     required AsyncValue<Lyrics?> lyricsAsync,
     required ScrollController scrollController,
   }) {
-    final artwork = state.artworkUrl;
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final hasText = lyrics != null && lyrics.hasLyrics;
@@ -378,14 +384,13 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     // Karaoke con am-lyrics: con `sync_level == word` o `line` y track con id.
     // El renderer nativo (`list`) se conserva como fallback para `none` y
     // para cualquier caso sin track id.
-    final webViewTrackId = state.track?.trackId ?? '';
     // En web no existe webview_flutter: el renderer nativo de la hoja hace
     // de fallback (misma UI, sin el motor de letras del WebView).
     final useWebView = !kIsWeb &&
         (level == LyricsSyncLevel.word || level == LyricsSyncLevel.line) &&
-        webViewTrackId.isNotEmpty;
+        trackId.isNotEmpty;
     debugPrint('[lyrics_sheet] level=$level '
-        'trackId=${state.track?.trackId} useWebView=$useWebView '
+        'trackId=$trackId useWebView=$useWebView '
         'hasText=$hasText lines=${lines.length}');
     final Widget body = ContentWidth(
       maxWidth: AppConstants.readingMaxWidth,
@@ -400,7 +405,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                     ),
                     child: AmLyricsWebView(
                       key: _lyricsWebViewKey,
-                      trackId: webViewTrackId,
+                      trackId: trackId,
                       apiBase: ref.watch(baseUrlHolderProvider).value,
                       apiToken: ref.watch(apiTokenHolderProvider).value,
                       initialPosition: Duration(milliseconds: positionMs),
@@ -430,6 +435,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
               child: CachedNetworkImage(
                 imageUrl: artwork,
                 fit: BoxFit.cover,
+                // El fondo va con blur 42: 384 px de origen alcanzan y
+                // ahorran RAM en gama baja.
+                memCacheWidth: 384,
                 errorWidget: (_, __, ___) =>
                     const ColoredBox(color: AppColors.background),
               ),

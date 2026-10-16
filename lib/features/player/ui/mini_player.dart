@@ -19,8 +19,27 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(playerProvider);
-    if (!state.hasTrack) return const SizedBox.shrink();
+    // Record con TODO lo que pinta la tarjeta salvo el progreso: los
+    // ticks de posición (5 Hz) no la reconstruyen — de eso se encarga
+    // `_MiniProgress`, que se repinta solo.
+    final (
+      hasTrack,
+      title,
+      artist,
+      artworkUrl,
+      playing,
+      loading,
+    ) = ref.watch(
+      playerProvider.select((s) => (
+            s.hasTrack,
+            s.title,
+            s.artist,
+            s.artworkUrl,
+            s.playing,
+            s.loading,
+          )),
+    );
+    if (!hasTrack) return const SizedBox.shrink();
 
     final controller = ref.read(playerProvider.notifier);
 
@@ -45,7 +64,7 @@ class MiniPlayer extends ConsumerWidget {
                         child: Row(
                           children: [
                             PlayerArtwork(
-                              url: state.artworkUrl,
+                              url: artworkUrl,
                               size: 46,
                               radius: 10,
                               heroTag: AppConstants.heroArtworkTag,
@@ -57,7 +76,7 @@ class MiniPlayer extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    state.title,
+                                    title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: AppTextStyles.body.copyWith(
@@ -67,7 +86,7 @@ class MiniPlayer extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    state.artist,
+                                    artist,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: AppTextStyles.caption.copyWith(
@@ -78,7 +97,7 @@ class MiniPlayer extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                            if (state.loading)
+                            if (loading)
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 12),
                                 child: SizedBox(
@@ -93,12 +112,11 @@ class MiniPlayer extends ConsumerWidget {
                                 width: 36,
                                 height: 36,
                                 child: IconButton(
-                                  tooltip:
-                                      state.playing ? 'Pausar' : 'Reproducir',
+                                  tooltip: playing ? 'Pausar' : 'Reproducir',
                                   padding: EdgeInsets.zero,
                                   onPressed: controller.togglePlayPause,
                                   icon: Icon(
-                                    state.playing
+                                    playing
                                         ? LucideIcons.pause
                                         : LucideIcons.play,
                                     size: 22,
@@ -123,23 +141,9 @@ class MiniPlayer extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      // Progreso: barrita fina insetada (boceto: inset 14, alto 2.5).
-                      Positioned(
-                        left: 14,
-                        right: 14,
-                        bottom: 5,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: state.progress,
-                            minHeight: 2.5,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.2),
-                            valueColor:
-                                const AlwaysStoppedAnimation(AppColors.accent),
-                          ),
-                        ),
-                      ),
+                      // Progreso aislado: los ticks de posición (5 Hz)
+                      // repintan sólo la barrita, no la tarjeta entera.
+                      const _MiniProgress(),
                     ],
                   ),
                 ),
@@ -152,5 +156,32 @@ class MiniPlayer extends ConsumerWidget {
         .animate()
         .fadeIn(duration: 250.ms)
         .slideY(begin: 0.4, end: 0, curve: Curves.easeOutCubic);
+  }
+}
+
+/// Barrita de progreso del mini player (inset 14, alto 2.5). Se aísla
+/// del resto de la tarjeta para que los ticks de posición (5 Hz)
+/// repinten sólo esto.
+class _MiniProgress extends ConsumerWidget {
+  const _MiniProgress();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(playerProvider.select((s) => s.progress));
+
+    return Positioned(
+      left: 14,
+      right: 14,
+      bottom: 5,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: LinearProgressIndicator(
+          value: progress,
+          minHeight: 2.5,
+          backgroundColor: Colors.white.withValues(alpha: 0.2),
+          valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+        ),
+      ),
+    );
   }
 }

@@ -31,7 +31,11 @@ class QueueSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(queueProvider);
-    final player = ref.watch(playerProvider);
+    // Sólo lo que usa la lista: hasTrack (hay fila activa) y playing (el
+    // icono). Los ticks de posición no reconstruyen la hoja.
+    final (hasTrack, playing) = ref.watch(
+      playerProvider.select((s) => (s.hasTrack, s.playing)),
+    );
     final controller = ref.read(playerProvider.notifier);
 
     return DraggableScrollableSheet(
@@ -98,8 +102,8 @@ class QueueSheet extends ConsumerWidget {
                             },
                             itemBuilder: (context, index) {
                               final track = queue.tracks[index];
-                              final isActive = index == queue.currentIndex &&
-                                  player.hasTrack;
+                              final isActive =
+                                  index == queue.currentIndex && hasTrack;
                               return _QueueTile(
                                 key: ValueKey('${track.trackId}_$index'),
                                 index: index,
@@ -107,7 +111,7 @@ class QueueSheet extends ConsumerWidget {
                                 subtitle: track.artist ?? '',
                                 duration: track.duration,
                                 isActive: isActive,
-                                isPlaying: isActive && player.playing,
+                                isPlaying: isActive && playing,
                                 onTap: () => ref
                                     .read(queueProvider.notifier)
                                     .jumpTo(index),

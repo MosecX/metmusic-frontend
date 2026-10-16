@@ -461,8 +461,9 @@ class _TrackListCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentId = ref.watch(playerProvider).track?.trackId;
-    final playing = ref.watch(playerProvider.select((s) => s.playing));
+    final (currentId, playing) = ref.watch(
+      playerProvider.select((s) => (s.track?.trackId, s.playing)),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),

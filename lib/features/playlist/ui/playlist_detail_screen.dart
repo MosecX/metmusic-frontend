@@ -264,8 +264,11 @@ class _PlaylistTrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(playerProvider);
-    final isActive = state.track?.trackId == track.trackId;
+    final (isActive, playing) = ref.watch(
+      playerProvider.select(
+        (s) => (s.track?.trackId == track.trackId, s.playing),
+      ),
+    );
 
     return TrackRow(
       track: track,
@@ -273,7 +276,7 @@ class _PlaylistTrackRow extends ConsumerWidget {
       showArtwork: false,
       showAlbum: true,
       isActive: isActive,
-      isPlaying: state.playing,
+      isPlaying: playing,
       onTap: () => ref.playTrack(track, context: queue, index: index - 1),
       onLongPress: () => openTrackContextMenu(context, ref, track),
       trailing: Row(

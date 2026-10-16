@@ -75,7 +75,9 @@ class _Content extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topTracks = artist.topTracks;
-    final playerState = ref.watch(playerProvider);
+    final (currentId, playing) = ref.watch(
+      playerProvider.select((s) => (s.track?.trackId, s.playing)),
+    );
 
     return CustomScrollView(
       slivers: [
@@ -134,9 +136,8 @@ class _Content extends ConsumerWidget {
                           index: i + 1,
                           showArtwork: false,
                           showAlbum: true,
-                          isActive: playerState.track?.trackId ==
-                              topTracks[i].trackId,
-                          isPlaying: playerState.playing,
+                          isActive: currentId == topTracks[i].trackId,
+                          isPlaying: playing,
                           onTap: () => ref.playTrack(
                             topTracks[i],
                             context: topTracks,

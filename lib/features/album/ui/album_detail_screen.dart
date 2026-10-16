@@ -201,15 +201,18 @@ class _AlbumTrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(playerProvider);
-    final isActive = state.track?.trackId == track.trackId;
+    final (isActive, playing) = ref.watch(
+      playerProvider.select(
+        (s) => (s.track?.trackId == track.trackId, s.playing),
+      ),
+    );
 
     return TrackRow(
       track: track,
       showArtwork: false,
       index: index,
       isActive: isActive,
-      isPlaying: state.playing,
+      isPlaying: playing,
       onTap: () => ref.playTrack(track, context: context_, index: index - 1),
       onLongPress: () => openTrackContextMenu(context, ref, track),
       trailing: IconButton(

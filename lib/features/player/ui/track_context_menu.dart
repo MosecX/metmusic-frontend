@@ -278,6 +278,8 @@ class _Cover extends StatelessWidget {
         width: 48,
         height: 48,
         fit: BoxFit.cover,
+        // 48×48 en pantalla: 160 px de decodificación alcanzan.
+        memCacheWidth: 160,
         placeholder: (_, __) => const ColoredBox(
           color: AppColors.backgroundAlt,
           child: SizedBox.expand(),

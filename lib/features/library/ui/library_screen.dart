@@ -365,8 +365,9 @@ class _FavoritesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesListProvider);
-    final currentId = ref.watch(playerProvider).track?.trackId;
-    final playing = ref.watch(playerProvider.select((s) => s.playing));
+    final (currentId, playing) = ref.watch(
+      playerProvider.select((s) => (s.track?.trackId, s.playing)),
+    );
 
     return favorites.when(
       loading: () => const Padding(
@@ -493,6 +494,9 @@ class _MixTile extends ConsumerWidget {
                     : CachedNetworkImage(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
+                        // 56×56 en pantalla: 160 px de decodificación
+                        // alcanzan y ahorran RAM.
+                        memCacheWidth: 160,
                         errorWidget: (_, __, ___) => const ColoredBox(
                           color: Color(0x0DFFFFFF),
                           child: Icon(

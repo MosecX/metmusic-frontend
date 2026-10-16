@@ -39,6 +39,9 @@ class CollapsibleHeader extends StatelessWidget {
           CachedNetworkImage(
             imageUrl: imageUrl,
             fit: BoxFit.cover,
+            // Fondo del AppBar: va debajo del velo oscuro; 600 px
+            // alcanzan y ahorran RAM.
+            memCacheWidth: 600,
             errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
         const DecoratedBox(
@@ -144,6 +147,7 @@ class _Artwork extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
+              memCacheWidth: (size * 2).round(),
               placeholder: (_, __) => const SizedBox.shrink(),
               errorWidget: (_, __, ___) => Icon(
                 isRound ? LucideIcons.user : LucideIcons.disc3,
@@ -340,6 +344,7 @@ class _HeroArtwork extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
+              memCacheWidth: (size * 2).round(),
               placeholder: (_, __) => _fallback(size),
               errorWidget: (_, __, ___) => _fallback(size),
             ),

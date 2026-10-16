@@ -10,6 +10,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/stream_info.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
@@ -19,7 +20,6 @@ import '../../../core/widgets/glass_player_card.dart';
 import '../../canvas/providers/canvas_provider.dart';
 import '../../canvas/ui/canvas_overlay.dart';
 import '../../playlist/ui/add_to_playlist_sheet.dart';
-import '../models/player_state.dart';
 import '../providers/player_provider.dart';
 import 'lyrics_sheet.dart';
 import 'player_artwork.dart';
@@ -56,12 +56,41 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(playerProvider);
     final controller = ref.read(playerProvider.notifier);
 
-    // Se mira siempre (aunque no haya track) para que la suscripción no cambie
-    // entre builds: sin track el provider devuelve null y no se pinta nada.
-    final trackId = state.track?.trackId ?? '';
+    // Un solo `select` con todo lo que pinta la pantalla salvo la
+    // posición: los ticks de posición (5 Hz) sólo repintan `_SeekBar`, no
+    // el reproductor entero. Se mira siempre (aunque no haya track) para
+    // que la suscripción no cambie entre builds.
+    final (
+      hasTrack,
+      trackId,
+      artworkUrl,
+      playing,
+      stream,
+      track,
+      title,
+      artist,
+      album,
+      repeat,
+      shuffle,
+      loading,
+    ) = ref.watch(
+      playerProvider.select((s) => (
+            s.hasTrack,
+            s.track?.trackId ?? '',
+            s.artworkUrl,
+            s.playing,
+            s.stream,
+            s.track,
+            s.title,
+            s.artist,
+            s.album,
+            s.queue.repeat,
+            s.queue.shuffle,
+            s.loading,
+          )),
+    );
     final canvasMedia = ref.watch(canvasProvider(trackId)).valueOrNull;
     final hasCanvas = canvasMedia != null;
 
@@ -74,12 +103,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       }
     });
 
-    if (!state.hasTrack) {
+    if (!hasTrack) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: Stack(
           children: [
-            _Background(state: state),
+            _Background(artworkUrl: artworkUrl),
             SafeArea(
               child: EmptyState(
                 icon: LucideIcons.music,
@@ -108,10 +137,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     // apaisado no hay altura para la portada grande: mandan los controles,
     // con gaps más compactos.
     final below = <Widget>[
-      _TrackInfo(state: state),
+      _TrackInfo(
+        showFavorite: track != null,
+        title: title,
+        artist: artist,
+        album: album,
+      ),
       SizedBox(height: isLandscape ? 12 : 20),
       _SeekBar(
-        state: state,
         dragValue: _dragValue,
         onDragStart: (value) => setState(() => _dragValue = value),
         onDragEnd: (value) {
@@ -120,11 +153,17 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         },
       ),
       SizedBox(height: isLandscape ? 8 : 12),
-      _MainControls(state: state, controller: controller),
+      _MainControls(
+        repeat: repeat,
+        shuffle: shuffle,
+        playing: playing,
+        loading: loading,
+        controller: controller,
+      ),
       SizedBox(height: isLandscape ? 14 : 24),
-      _SecondaryControls(state: state),
+      _SecondaryControls(trackId: trackId),
       SizedBox(height: isLandscape ? 10 : 16),
-      _QualityBadge(state: state),
+      _QualityBadge(stream: stream),
     ];
 
     // Si la canción tiene canvas animado, el canvas REEMPLAZA a la portada en
@@ -173,7 +212,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                         Align(
                           alignment: Alignment.topCenter,
                           child: PlayerArtwork(
-                            url: state.artworkUrl,
+                            url: artworkUrl,
                             size: constraints.maxWidth,
                             radius: 0,
                             heroTag: AppConstants.heroArtworkTag,
@@ -182,7 +221,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                         ),
                         CanvasOverlay(
                           media: canvasMedia,
-                          playing: state.playing,
+                          playing: playing,
                           radius: 0,
                           onAspectChanged: _onCanvasAspect,
                         ),
@@ -234,7 +273,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: ContentWidth(
                         maxWidth: AppConstants.playerMaxWidth,
-                        child: _Header(state: state),
+                        child: _Header(stream: stream),
                       ),
                     ),
                   ),
@@ -249,14 +288,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       // PlayerArtwork dibuja su propia sombra hacia afuera y un clip la
       // cortaría.
       Widget artwork = PlayerArtwork(
-        url: state.artworkUrl,
+        url: artworkUrl,
         size: artworkSize,
         radius: 16,
         heroTag: AppConstants.heroArtworkTag,
         elevated: true,
       );
       artwork = AnimatedScale(
-        scale: state.playing ? 1 : 0.92,
+        scale: playing ? 1 : 0.92,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
         child: artwork,
@@ -272,7 +311,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       // controles.
       final showArtwork = !isLandscape || size.height >= 640;
       columnChildren = [
-        _Header(state: state),
+        _Header(stream: stream),
         Expanded(
           child: Center(
             child: FittedBox(
@@ -341,7 +380,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          _Background(state: state),
+          _Background(artworkUrl: artworkUrl),
           Transform.translate(
             offset: Offset(0, _dragOffset.clamp(0.0, 400.0) * 0.35),
             child: body,
@@ -506,28 +545,29 @@ class _BlurBand extends StatelessWidget {
 /// el fondo se ve el arte fijo para que los controles se sigan leyendo y no
 /// haya dos vídeos corriendo a la vez.
 class _Background extends StatelessWidget {
-  const _Background({required this.state});
+  const _Background({required this.artworkUrl});
 
-  final MetPlayerState state;
+  final String artworkUrl;
 
   @override
   Widget build(BuildContext context) {
-    final artwork = state.artworkUrl;
-
     return Stack(
       fit: StackFit.expand,
       children: [
         const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         ),
-        if (artwork.isNotEmpty)
+        if (artworkUrl.isNotEmpty)
           Opacity(
             opacity: 0.30,
             child: ImageFiltered(
               imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
               child: CachedNetworkImage(
-                imageUrl: artwork,
+                imageUrl: artworkUrl,
                 fit: BoxFit.cover,
+                // El velo va con blur 60: 384 px de origen alcanzan y
+                // ahorran RAM en gama baja.
+                memCacheWidth: 384,
                 errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
@@ -556,9 +596,9 @@ class _Background extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Header extends ConsumerWidget {
-  const _Header({required this.state});
+  const _Header({required this.stream});
 
-  final MetPlayerState state;
+  final StreamInfo? stream;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -577,7 +617,7 @@ class _Header extends ConsumerWidget {
                 const Text('REPRODUCIENDO', style: AppTextStyles.overline),
                 const SizedBox(height: 2),
                 Text(
-                  _sourceLabel(state),
+                  _sourceLabel(stream),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption,
@@ -595,8 +635,7 @@ class _Header extends ConsumerWidget {
     );
   }
 
-  String _sourceLabel(MetPlayerState state) {
-    final stream = state.stream;
+  String _sourceLabel(StreamInfo? stream) {
     if (stream == null) return 'MetMusic';
     final provider = (stream.provider ?? '').toUpperCase();
     final quality = stream.qualityLabel;
@@ -610,13 +649,20 @@ class _Header extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _TrackInfo extends ConsumerWidget {
-  const _TrackInfo({required this.state});
+  const _TrackInfo({
+    required this.showFavorite,
+    required this.title,
+    required this.artist,
+    required this.album,
+  });
 
-  final MetPlayerState state;
+  final bool showFavorite;
+  final String title;
+  final String artist;
+  final String album;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final track = state.track;
     final isFavorite = ref.watch(currentTrackIsFavoriteProvider);
 
     return Row(
@@ -626,7 +672,7 @@ class _TrackInfo extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                state.title,
+                title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.headline.copyWith(
@@ -639,8 +685,8 @@ class _TrackInfo extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 [
-                  if (state.artist.isNotEmpty) state.artist,
-                  if (state.album.isNotEmpty) state.album,
+                  if (artist.isNotEmpty) artist,
+                  if (album.isNotEmpty) album,
                 ].join(' • '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -649,7 +695,7 @@ class _TrackInfo extends ConsumerWidget {
             ],
           ),
         ),
-        if (track != null)
+        if (showFavorite)
           IconButton(
             tooltip: isFavorite ? 'Quitar de favoritos' : 'Favorito',
             onPressed: () => ref.read(playerProvider.notifier).toggleFavorite(),
@@ -668,25 +714,29 @@ class _TrackInfo extends ConsumerWidget {
 // Seek bar
 // ---------------------------------------------------------------------------
 
-class _SeekBar extends StatelessWidget {
+class _SeekBar extends ConsumerWidget {
   const _SeekBar({
-    required this.state,
     required this.dragValue,
     required this.onDragStart,
     required this.onDragEnd,
   });
 
-  final MetPlayerState state;
   final double? dragValue;
   final ValueChanged<double> onDragStart;
   final ValueChanged<double> onDragEnd;
 
   @override
-  Widget build(BuildContext context) {
-    final total = state.effectiveDuration;
-    final value = dragValue ?? state.progress;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // La posición se mira SOLO acá: los ticks de 5 Hz repintan la barra y
+    // los tiempos, no la pantalla entera del reproductor.
+    final (position, total, progress) = ref.watch(
+      playerProvider.select(
+        (s) => (s.position, s.effectiveDuration, s.progress),
+      ),
+    );
+    final value = dragValue ?? progress;
     final shownPosition = dragValue == null
-        ? state.position
+        ? position
         : Duration(milliseconds: (total.inMilliseconds * dragValue!).round());
 
     return Column(
@@ -737,20 +787,28 @@ class _SeekBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _MainControls extends StatelessWidget {
-  const _MainControls({required this.state, required this.controller});
+  const _MainControls({
+    required this.repeat,
+    required this.shuffle,
+    required this.playing,
+    required this.loading,
+    required this.controller,
+  });
 
-  final MetPlayerState state;
+  final LoopMode repeat;
+  final bool shuffle;
+  final bool playing;
+  final bool loading;
   final PlayerController controller;
 
   @override
   Widget build(BuildContext context) {
-    final repeat = state.queue.repeat;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _CircleIconButton(
           icon: LucideIcons.shuffle,
-          active: state.queue.shuffle,
+          active: shuffle,
           tooltip: 'Aleatorio',
           onTap: controller.toggleShuffle,
         ),
@@ -761,8 +819,8 @@ class _MainControls extends StatelessWidget {
           onTap: controller.previous,
         ),
         _PlayPauseButton(
-          playing: state.playing,
-          loading: state.loading,
+          playing: playing,
+          loading: loading,
           onTap: controller.togglePlayPause,
         ),
         _CircleIconButton(
@@ -869,13 +927,12 @@ class _CircleIconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SecondaryControls extends ConsumerWidget {
-  const _SecondaryControls({required this.state});
+  const _SecondaryControls({required this.trackId});
 
-  final MetPlayerState state;
+  final String trackId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final track = state.track;
     // `FittedBox.scaleDown`: en pantallas de 320 px las tres pills caben
     // siempre — se reducen un poco en vez de desbordar la fila.
     return FittedBox(
@@ -888,8 +945,8 @@ class _SecondaryControls extends ConsumerWidget {
             icon: LucideIcons.plus,
             label: 'Playlist',
             onTap: () {
-              if (track != null) {
-                AddToPlaylistSheet.show(context, track.trackId);
+              if (trackId.isNotEmpty) {
+                AddToPlaylistSheet.show(context, trackId);
               }
             },
           ),
@@ -967,13 +1024,14 @@ class _PillButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _QualityBadge extends StatelessWidget {
-  const _QualityBadge({required this.state});
+  const _QualityBadge({required this.stream});
 
-  final MetPlayerState state;
+  final StreamInfo? stream;
 
   @override
   Widget build(BuildContext context) {
-    final stream = state.stream;
+    // Copia local: los campos de instancia no se promueven a no-nulo.
+    final stream = this.stream;
     if (stream == null) return const SizedBox(height: 34);
 
     // Ancho máximo = pantalla - respiración: en dispositivos de 320 px el
