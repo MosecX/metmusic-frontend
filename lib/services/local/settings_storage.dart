@@ -42,13 +42,6 @@ class SettingsStorage {
   Future<void> setAudioQuality(AudioQualityPreference quality) =>
       _prefs.setString(AppConstants.prefAudioQuality, quality.value);
 
-  // --- Letras ---
-  LyricsMode get lyricsMode =>
-      LyricsMode.fromValue(_prefs.getString(AppConstants.prefLyricsMode));
-
-  Future<void> setLyricsMode(LyricsMode mode) =>
-      _prefs.setString(AppConstants.prefLyricsMode, mode.value);
-
   // --- Preferencias de reproducción ---
   bool get shuffle => _prefs.getBool(AppConstants.prefShuffle) ?? false;
 

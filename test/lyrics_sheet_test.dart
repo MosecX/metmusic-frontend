@@ -44,7 +44,6 @@ void main() {
     LyricsSyncLevel level = LyricsSyncLevel.word,
     bool brokenWords = false,
     int positionMs = 2000,
-    bool visualizer = false,
     void Function()? onTap,
   }) {
     return tester.pumpWidget(
@@ -56,8 +55,6 @@ void main() {
             distance: distance,
             level: level,
             positionMs: positionMs,
-            visualizer: visualizer,
-            landscape: false,
             onTap: onTap ?? () {},
           ),
         ),
@@ -110,28 +107,6 @@ void main() {
         lineChild(AnimatedDefaultTextStyle),
       );
       expect(unlit.duration, const Duration(milliseconds: 450));
-    });
-
-    testWidgets('el modo visualizer usa transiciones más lentas y cuerpo 25',
-        (tester) async {
-      await pumpLine(
-        tester,
-        lit: true,
-        distance: 0,
-        visualizer: true,
-        level: LyricsSyncLevel.line,
-      );
-      final opacity = tester.widget<AnimatedOpacity>(
-        lineChild(AnimatedOpacity),
-      );
-      expect(opacity.duration, const Duration(milliseconds: 420));
-      final text = tester.widget<Text>(
-        find.descendant(
-          of: find.byType(LyricsLine),
-          matching: find.byType(Text),
-        ),
-      );
-      expect(text.textSpan!.toPlainText(), 'hola mundo');
     });
   });
 

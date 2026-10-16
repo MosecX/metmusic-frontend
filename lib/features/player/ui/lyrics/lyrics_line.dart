@@ -15,7 +15,7 @@ double _lineBlur(int distance, {double intensity = 1.0}) {
   return (2.0 + (distance - 1) * 1.4).clamp(0.0, 8.0) * intensity;
 }
 
-/// Línea de letra de la hoja, en cualquiera de los dos modos.
+/// Línea de letra de la hoja.
 ///
 /// Sigue la escalera de am-lyrics: la activa va a escala 1.0 / w700 / a
 /// plena opacidad y las demás bajan de a pasos (opacidad 0.72 → 0.38,
@@ -30,8 +30,6 @@ class LyricsLine extends StatelessWidget {
     required this.distance,
     required this.level,
     required this.positionMs,
-    required this.visualizer,
-    required this.landscape,
     required this.onTap,
   });
 
@@ -49,29 +47,24 @@ class LyricsLine extends StatelessWidget {
   final LyricsSyncLevel level;
 
   final int positionMs;
-  final bool visualizer;
-  final bool landscape;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final duration = Duration(milliseconds: visualizer ? 420 : 300);
+    const duration = Duration(milliseconds: 300);
     // La línea que se apaga decae más lento que la que se enciende: el
     // relevo entre versos se lee como un pase de testigo, no como dos
     // cambios simultáneos compitiendo.
-    final fadeOut = Duration(milliseconds: visualizer ? 570 : 450);
-    final curve = visualizer ? Curves.easeOutCubic : Curves.easeInOutCubic;
-    final align = visualizer && landscape ? TextAlign.center : TextAlign.left;
+    const fadeOut = Duration(milliseconds: 450);
+    const curve = Curves.easeInOutCubic;
+    const align = TextAlign.left;
     final dimColor = AppColors.textPrimary.withValues(alpha: 0.42);
 
     final style = TextStyle(
       color: lit ? AppColors.textPrimary : dimColor,
-      fontSize: visualizer ? (landscape ? 30.0 : 25.0) : 22.0,
-      fontWeight: lit
-          ? FontWeight.w700
-          : (visualizer ? FontWeight.w400 : FontWeight.w500),
-      letterSpacing: visualizer && lit ? 0.4 : null,
-      height: visualizer ? 1.36 : 1.34,
+      fontSize: 22.0,
+      fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
+      height: 1.34,
       shadows: lit ? _glow() : null,
     );
 
@@ -85,8 +78,7 @@ class LyricsLine extends StatelessWidget {
       scale: lyricsScale(distance),
       duration: duration,
       curve: curve,
-      alignment:
-          align == TextAlign.center ? Alignment.center : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: child,
     );
     child = AnimatedOpacity(
@@ -96,7 +88,7 @@ class LyricsLine extends StatelessWidget {
       child: child,
     );
 
-    final blur = _lineBlur(distance, intensity: visualizer ? 1.0 : 0.4);
+    final blur = _lineBlur(distance, intensity: 0.4);
     if (blur > 0.05) {
       child = ImageFiltered(
         imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
@@ -113,11 +105,8 @@ class LyricsLine extends StatelessWidget {
         child: AnimatedContainer(
           duration: duration,
           curve: curve,
-          margin: EdgeInsets.symmetric(
-              vertical: visualizer ? (lit ? 9 : 6) : (lit ? 7 : 5)),
-          padding: visualizer
-              ? const EdgeInsets.symmetric(horizontal: 18, vertical: 8)
-              : const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          margin: EdgeInsets.symmetric(vertical: lit ? 7 : 5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           child: child,
         ),
       ),
@@ -143,18 +132,9 @@ class LyricsLine extends StatelessWidget {
     );
   }
 
-  /// Resplandor de la línea encendida (se conserva del modo anterior, con
-  /// más cuerpo para marcar lo que está sonando).
+  /// Resplandor de la línea encendida: un halo de texto + un halo de acento
+  /// para marcar lo que está sonando.
   List<Shadow> _glow() {
-    if (visualizer) {
-      return [
-        Shadow(
-          blurRadius: 16,
-          color: AppColors.textPrimary.withValues(alpha: 0.28),
-        ),
-        Shadow(blurRadius: 30, color: AppColors.accent.withValues(alpha: 0.34)),
-      ];
-    }
     return [
       Shadow(
         blurRadius: 14,

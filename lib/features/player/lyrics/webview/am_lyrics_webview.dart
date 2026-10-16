@@ -11,11 +11,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// cada ~250ms via __setLyricsTime. Eso reduce el cruce del puente
 /// Dart-JS de 20-33 Hz a 4 Hz, que es la diferencia entre lag y
 /// fluidez en gama baja.
-///
-/// Tambien controla el visualizer Kawarp (canvas dentro del WebView,
-/// estilo Monochrome): initVisualizer/setVisualizerEnabled/
-/// setVisualizerCover. Las peticiones hechas antes de que la pagina
-/// esté "ready" se encolan y se aplican al llegar el ready.
 class AmLyricsWebView extends StatefulWidget {
   final String trackId;
   final String apiBase;
@@ -53,14 +48,6 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
 
   double _pendingMs = 0;
   bool _pendingPlaying = false;
-
-  // Estado del visualizer Kawarp: lo pedido vs. lo ya enviado al
-  // WebView. "Requested" se guarda aunque la pagina no este lista;
-  // "sent" evita reenviar el mismo estado en cada rebuild.
-  String? _requestedCover;
-  String? _sentCover;
-  bool? _requestedVisualizer;
-  bool? _sentVisualizer;
 
   /// Cada cuanto se empuja el tiempo al WebView. 250ms = 4 Hz.
   /// El loop rAF interno interpola entre pushes, asi que esto no
@@ -170,13 +157,6 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
               widget.onDebug?.call('am-lyrics ready');
               _startPushTimer();
               _pushTime();
-              // Visualizer: init primero (crea+arranca Kawarp) y luego
-              // aplicar el estado encolado (en modo normal lo para y
-              // oculta el canvas al instante). Cover y estilo Monochrome
-              // tambien se encolan hasta aqui.
-              unawaited(initVisualizer());
-              unawaited(_applyVisualizerEnabled());
-              unawaited(_flushCover());
               unawaited(_injectStyle(_monochromeShadowCss));
               break;
             case 'error':
@@ -312,50 +292,6 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     // Empujar inmediatamente para arrancar/parar el rAF sin esperar
     // al siguiente tick del Timer.
     unawaited(_pushTime());
-  }
-
-  /// URL del artwork para el visualizer Kawarp. Se encola hasta que
-  /// la pagina este lista y se deduplica para no reenviar la misma.
-  Future<void> setVisualizerCover(String coverUrl) async {
-    if (coverUrl == _requestedCover) return;
-    _requestedCover = coverUrl;
-    await _flushCover();
-  }
-
-  Future<void> _flushCover() async {
-    final url = _requestedCover;
-    if (!_ready || url == null || url == _sentCover) return;
-    _sentCover = url;
-    await _ctrl.runJavaScript(
-      'window.__setVisualizerCover && '
-      'window.__setVisualizerCover(${jsonEncode(url)});',
-    );
-  }
-
-  /// Activa/desactiva el canvas Kawarp (solo en modo visualizer).
-  /// Se encola hasta ready y se deduplica.
-  Future<void> setVisualizerEnabled(bool enabled) async {
-    if (enabled == _requestedVisualizer) return;
-    _requestedVisualizer = enabled;
-    await _applyVisualizerEnabled();
-  }
-
-  Future<void> _applyVisualizerEnabled() async {
-    final enabled = _requestedVisualizer;
-    if (!_ready || enabled == null || enabled == _sentVisualizer) return;
-    _sentVisualizer = enabled;
-    await _ctrl.runJavaScript(
-      'window.__setVisualizerEnabled && '
-      'window.__setVisualizerEnabled($enabled);',
-    );
-  }
-
-  /// Inicializa el visualizer Kawarp dentro del WebView. Se llama
-  /// cuando el bridge reporta 'ready'.
-  Future<void> initVisualizer() async {
-    await _ctrl.runJavaScript(
-      'window.__initVisualizer && window.__initVisualizer();',
-    );
   }
 
   @override

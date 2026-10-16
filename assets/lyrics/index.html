@@ -7,24 +7,15 @@
   <style>
     /* NO usar contain: strict en html/body. contain: size hace que el
        contenedor tenga tamaño intrínseco 0x0 y rompe el layout de todo
-       lo que esté dentro, incluido el canvas fullscreen. */
+       lo que esté dentro. */
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
       background: transparent; overflow: hidden;
       -webkit-tap-highlight-color: transparent;
       -webkit-user-select: none; user-select: none;
     }
-    #kawarp-canvas {
-      position: fixed; top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      z-index: 0;
-      pointer-events: none;
-      display: block;
-      margin: 0; padding: 0;
-    }
     am-lyrics {
       position: relative;
-      z-index: 1;
       height: 100%;
       width: 100%;
       --am-lyrics-highlight-color: #ffffff;
@@ -48,21 +39,11 @@
   <script src="./am-lyrics.iife.js"></script>
 </head>
 <body>
-  <!-- Visualizer Kawarp (Monochrome): canvas fullscreen DETRAS de las
-       letras (regla #kawarp-canvas con z-index:0 + am-lyrics z-index:1).
-       Sin style inline: lo gobierna la regla CSS. No dibuja nada hasta
-       que Dart llama init; en modo estandar Dart lo oculta al arrancar. -->
-  <canvas id="kawarp-canvas"></canvas>
-
   <!-- no-blur anula el sistema de blur NATIVO del componente (reglas
        internas, ventana prev/next-N, JS progresivo): todo el coste
        queda en el CSS que Dart inyecta en el shadowRoot (blur solo en
        pre-active). interpolate lo decide el script de abajo (isLowEnd). -->
   <am-lyrics autoscroll interpolate no-blur></am-lyrics>
-
-  <!-- @kawarp/core empaquetado como IIFE: expone window.Kawarp. -->
-  <script src="./kawarp-core.js"></script>
-  <script src="./kawarp.js"></script>
 
   <script>
     // Loop de interpolacion de tiempo DENTRO del WebView.
@@ -162,75 +143,7 @@
         }
         s.textContent = css;
       };
-
-      // --- Debug del canvas Kawarp ---
-      window.__syncKawarpSize = function() {
-        const canvas = document.getElementById('kawarp-canvas');
-        if (!canvas) {
-          log('kawarp canvas missing');
-          return;
-        }
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const dpr = window.devicePixelRatio || 1;
-        canvas.style.width = w + 'px';
-        canvas.style.height = h + 'px';
-        canvas.width = Math.floor(w * dpr);
-        canvas.height = Math.floor(h * dpr);
-        const rect = canvas.getBoundingClientRect();
-        log('kawarp size: viewport=' + w + 'x' + h +
-            ' buffer=' + canvas.width + 'x' + canvas.height +
-            ' rect=' + Math.round(rect.width) + 'x' + Math.round(rect.height) +
-            ' dpr=' + dpr);
-        const vis = window.__kawarpVisualizer;
-        if (vis && vis.kawarp && typeof vis.kawarp.resize === 'function') {
-          try {
-            vis.kawarp.resize(w, h);
-            log('kawarp.resize called');
-          } catch (e) {
-            log('kawarp.resize error: ' + e);
-          }
-        }
-      };
-      window.addEventListener('resize', window.__syncKawarpSize);
-      window.addEventListener('orientationchange', function() {
-        setTimeout(window.__syncKawarpSize, 150);
-      });
-      window.addEventListener('load', function() {
-        setTimeout(window.__syncKawarpSize, 200);
-      });
     })();
-
-    // ---- Visualizer Kawarp: control desde Dart ----
-
-    window.__setVisualizerCover = function(url) {
-      const vis = window.__kawarpVisualizer;
-      // Sin check de isInitialized: loadCover encola el cover si el
-      // visualizer aun no existe y lo aplica al terminar el init.
-      if (vis) vis.loadCover(url);
-    };
-
-    window.__initVisualizer = function() {
-      const canvas = document.getElementById('kawarp-canvas');
-      if (canvas && window.__kawarpVisualizer) {
-        window.__kawarpVisualizer.init(canvas);
-      }
-    };
-
-    window.__setVisualizerEnabled = function(enabled) {
-      const canvas = document.getElementById('kawarp-canvas');
-      if (!canvas) return;
-      canvas.style.display = enabled ? 'block' : 'none';
-      const vis = window.__kawarpVisualizer;
-      if (!vis) return;
-      if (enabled) {
-        vis.init(canvas);            // idempotente
-        if (vis.kawarp) vis.kawarp.start();
-      } else if (vis.kawarp) {
-        // Oculto: parar el rAF de WebGL para no gastar GPU en gama baja.
-        vis.kawarp.stop();
-      }
-    };
   </script>
 </body>
 </html>
