@@ -55,9 +55,12 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   static const Duration _pushInterval = Duration(milliseconds: 250);
 
   /// CSS inyectado en el shadowRoot de am-lyrics — "blur con coste
-  /// controlado" (Apple Music look): tipografia SF, contain por linea,
-  /// blur SOLO en la linea pre-active, lejanas sin filter con
-  /// content-visibility y will-change acotado a active/pre-active.
+  /// controlado" (Apple Music look): tipografia SF, escalera de
+  /// opacidades 1 / 0.62 / 0.45, glow blanco en la activa, contain por
+  /// linea, blur SOLO en la linea pre-active y will-change acotado a la
+  /// activa. En gama baja (`data-tier="low"`, lo pone index.html) el
+  /// blur de la pre-active se apaga: la GPU chica lo paga caro y la
+  /// escalera de opacidades ya alcanza.
   ///
   /// Notas de especificidad (gamma): con `no-blur` puesto el componente
   /// aplica `:host([no-blur]) .lyrics-line` (0,3,0 con !important):
@@ -67,6 +70,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   /// `.lyrics-container ` (0,4,0), igual que el transform del
   /// contenedor activo, que desempata contra el `scale(1)` del
   /// componente (misma especificidad 0,3,0, orden de hojas incierto).
+  /// El apagado por gama baja suma `:host([data-tier="low"])` (0,5,0):
+  /// le gana a la regla del blur, ambas con !important.
   static const String _monochromeShadowCss = '''
 /* Tipografía Apple Music. */
 .lyrics-line,
@@ -74,9 +79,10 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
 .lyrics-line span,
 .lyrics-line-container span,
 [class="lyric"] {
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif !important;
   letter-spacing: -0.025em !important;
+  line-height: 1.2 !important;
 }
 
 /* Contain por línea, versión conservadora: solo layout y paint.
@@ -91,24 +97,33 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
-/* Líneas inactivas lejanas: solo opacidad, sin filter, sin
-   content-visibility, sin contain-intrinsic-size. Las gaps
-   inactivas no importan: el componente las colapsa a height:0. */
+/* Líneas inactivas lejanas: solo opacidad (45 %, escalera Apple Music),
+   sin filter, sin content-visibility, sin contain-intrinsic-size. Las
+   gaps inactivas no importan: el componente las colapsa a height:0. */
 .lyrics-line:not(.active):not(.pre-active) {
-  opacity: 0.42 !important;
+  opacity: 0.45 !important;
 }
 
-/* Línea previa: blur suave, opacidad intermedia. Prefijo
-   .lyrics-container para ganarle a :host([no-blur]) (0,3,0). */
+/* Línea siguiente (pre-active): blur suave, opacidad intermedia.
+   Prefijo .lyrics-container para ganarle a :host([no-blur]) (0,3,0). */
 .lyrics-container .lyrics-line.pre-active {
-  opacity: 0.68 !important;
+  opacity: 0.62 !important;
   filter: blur(0.04em) !important;
 }
 
-/* Línea activa: sin blur, opacidad completa. */
+/* Gama baja: la GPU chica paga caro el blur de la pre-active; la
+   escalera de opacidades ya alcanza. :host([data-tier]) (0,5,0) le gana
+   a la regla de arriba (0,4,0), ambas con !important. */
+:host([data-tier="low"]) .lyrics-container .lyrics-line.pre-active {
+  filter: none !important;
+}
+
+/* Línea activa: sin blur, opacidad completa y glow blanco suave
+   (text-shadow, no filter: el filter crearia una capa GPU). */
 .lyrics-line.active {
   opacity: 1 !important;
   filter: none !important;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.22) !important;
 }
 
 /* will-change SOLO en la línea activa. Sin will-change: filter:
@@ -120,7 +135,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
 
 /* Animación de entrada: solo transform. */
 .lyrics-container .lyrics-line.active .lyrics-line-container {
-  transform: scale(1.018);
+  transform: scale(1.02);
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 

@@ -7,21 +7,14 @@ import '../../../../core/models/lyrics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/lyrics_timeline.dart';
 
-/// Distancia (en líneas) a la línea activa → sigma de desenfoque. La línea
-/// activa sale nítida y los vecinos se desenfocan suave, para que las
-/// líneas "emergen" de las borrosas al acercarse. Barato: tope en 8.
-double _lineBlur(int distance, {double intensity = 1.0}) {
-  if (distance <= 0) return 0;
-  return (2.0 + (distance - 1) * 1.4).clamp(0.0, 8.0) * intensity;
-}
-
 /// Línea de letra de la hoja.
 ///
-/// Sigue la escalera de am-lyrics: la activa va a escala 1.0 / w700 / a
-/// plena opacidad y las demás bajan de a pasos (opacidad 0.72 → 0.38,
-/// escala 0.98, blur por distancia) sobre una base apagada (0.42) que deja
-/// a lo encendido con contraste claro. El cuerpo de la caja NUNCA cambia,
-/// así que no hay reflow ni saltos en el auto-scroll.
+/// Estilo Apple Music: mismo peso (w700) y misma caja para todas las
+/// líneas — el estado va por opacidad (1 / 0.62 / 0.45), escala (1.0 /
+/// 0.98), glow blanco en la activa y un blur sutil sólo en la siguiente
+/// ([preActive]). El cuerpo de la caja NUNCA cambia, así que no hay
+/// reflow ni saltos en el auto-scroll (animar el peso re-maquetaba el
+/// texto en cada relevo).
 class LyricsLine extends StatelessWidget {
   const LyricsLine({
     super.key,
@@ -31,6 +24,7 @@ class LyricsLine extends StatelessWidget {
     required this.level,
     required this.positionMs,
     required this.onTap,
+    this.preActive = false,
   });
 
   /// Línea sincronizada a renderizar.
@@ -42,6 +36,10 @@ class LyricsLine extends StatelessWidget {
   /// Distancia a la línea de referencia (la del hueco en curso no cuenta
   /// como encendida).
   final int distance;
+
+  /// `true` sólo en la línea siguiente a la referencia (la que va a
+  /// entrar): es la única con blur.
+  final bool preActive;
 
   /// Nivel de sincronía del track (puede variar por respuesta).
   final LyricsSyncLevel level;
@@ -60,11 +58,14 @@ class LyricsLine extends StatelessWidget {
     const align = TextAlign.left;
     final dimColor = AppColors.textPrimary.withValues(alpha: 0.42);
 
+    // Peso, cuerpo y tracking fijos: el cambio entre estados va por
+    // opacidad/escala/glow, así la transición no re-maqueta el texto.
     final style = TextStyle(
-      color: lit ? AppColors.textPrimary : dimColor,
+      color: AppColors.textPrimary,
       fontSize: 22.0,
-      fontWeight: lit ? FontWeight.w700 : FontWeight.w500,
-      height: 1.34,
+      fontWeight: FontWeight.w700,
+      height: 1.2,
+      letterSpacing: -0.55,
       shadows: lit ? _glow() : null,
     );
 
@@ -88,10 +89,13 @@ class LyricsLine extends StatelessWidget {
       child: child,
     );
 
-    final blur = _lineBlur(distance, intensity: 0.4);
-    if (blur > 0.05) {
+    // Blur sutil sólo en la línea siguiente (pre-active): el verso
+    // "emerge" al encenderse. Cada capa difusa es un `saveLayer` caro en
+    // gama baja, así que el resto va nítido — la escalera de opacidades
+    // ya separa las líneas.
+    if (preActive) {
       child = ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        imageFilter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
         child: child,
       );
     }
@@ -132,15 +136,14 @@ class LyricsLine extends StatelessWidget {
     );
   }
 
-  /// Resplandor de la línea encendida: un halo de texto + un halo de acento
-  /// para marcar lo que está sonando.
+  /// Resplandor de la línea encendida: un halo blanco suave. `text-shadow`
+  /// (no `filter`): el filter crearía una capa GPU por línea.
   List<Shadow> _glow() {
     return [
       Shadow(
-        blurRadius: 14,
-        color: AppColors.textPrimary.withValues(alpha: 0.24),
+        blurRadius: 16,
+        color: AppColors.textPrimary.withValues(alpha: 0.22),
       ),
-      Shadow(blurRadius: 26, color: AppColors.accent.withValues(alpha: 0.22)),
     ];
   }
 }

@@ -5,15 +5,13 @@ import '../models/lyrics.dart';
 /// Opacidad de una línea según su distancia a la línea activa. La
 /// distinción entre lo ya cantado y lo que falta no se resuelve con el
 /// color de la línea sino con el wipe por palabra, así que acá sólo manda
-/// la distancia. Escalera más pronunciada que la de am-lyrics
-/// (`1 / .72 / .58 / .47 / .38`) para que la línea encendida se separe
-/// con claridad de las vecinas.
+/// la distancia. Escalera estilo Apple Music: la activa a plena opacidad,
+/// las vecinas al ~62 % y el resto al ~45 %; todo nítido, porque el único
+/// blur es el de la línea siguiente y lo resuelve cada renderer.
 double lyricsOpacity(int distance) {
   if (distance <= 0) return 1;
-  if (distance == 1) return 0.72;
-  if (distance == 2) return 0.58;
-  if (distance == 3) return 0.47;
-  return 0.38;
+  if (distance == 1) return 0.62;
+  return 0.45;
 }
 
 /// Escala de una línea por distancia (am-lyrics: `scale(.98)` en las

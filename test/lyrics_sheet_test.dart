@@ -74,12 +74,12 @@ void main() {
       expect(opacity.duration, const Duration(milliseconds: 300));
     });
 
-    testWidgets('las inactivas bajan a 0.72 / 0.38 y escala 0.98',
+    testWidgets('las inactivas bajan a 0.62 / 0.45 y escala 0.98',
         (tester) async {
       await pumpLine(tester, distance: 1);
       expect(
         tester.widget<AnimatedOpacity>(lineChild(AnimatedOpacity)).opacity,
-        0.72,
+        0.62,
       );
       expect(
         tester.widget<AnimatedScale>(lineChild(AnimatedScale)).scale,
@@ -89,7 +89,7 @@ void main() {
       await pumpLine(tester, distance: 4);
       expect(
         tester.widget<AnimatedOpacity>(lineChild(AnimatedOpacity)).opacity,
-        0.38,
+        0.45,
       );
     });
 

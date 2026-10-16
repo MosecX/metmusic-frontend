@@ -18,20 +18,22 @@
       position: relative;
       height: 100%;
       width: 100%;
+      /* El color del texto sale de --lyplus-text-primary =
+         --am-lyrics-highlight-color: blanco puro. La escalera de
+         opacidades la pone el CSS que Dart inyecta en el shadowRoot. */
       --am-lyrics-highlight-color: #ffffff;
       --lyrics-scroll-padding-top: 30%;
       --lyplus-font-size-base: clamp(36px, 3.4vw, 56px);
       --lyplus-padding-line: 10px;
-      --lyplus-text-color: rgba(255, 255, 255, 0.42);
-      --lyplus-active-color: #ffffff;
       /* Blur interno de am-lyrics anulado: el unico blur visible es
-         el que inyecta Dart en el shadowRoot (coste acotado). */
+         el que inyecta Dart en el shadowRoot (coste acotado) y en
+         gama baja lo apaga :host([data-tier="low"]). */
       --lyplus-blur-amount: 0 !important;
       --lyplus-blur-amount-near: 0 !important;
-      line-height: 1.28;
+      line-height: 1.2;
       letter-spacing: -0.025em;
       isolation: isolate;
-      font-weight: 600;
+      font-weight: 700;
     }
   </style>
   <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
@@ -42,7 +44,8 @@
   <!-- no-blur anula el sistema de blur NATIVO del componente (reglas
        internas, ventana prev/next-N, JS progresivo): todo el coste
        queda en el CSS que Dart inyecta en el shadowRoot (blur solo en
-       pre-active). interpolate lo decide el script de abajo (isLowEnd). -->
+       pre-active; en gama baja lo apaga data-tier="low"). interpolate
+       lo decide el script de abajo (isLowEnd). -->
   <am-lyrics autoscroll interpolate no-blur></am-lyrics>
 
   <script>
@@ -62,6 +65,8 @@
       // que es lo que dejo probado la Task 4.
       const isLowEnd = cores <= 4 || mem <= 2;
       window.__deviceTier = isLowEnd ? 'low' : 'high';
+      // El CSS inyectado apaga el blur de la pre-active en gama baja.
+      el.setAttribute('data-tier', window.__deviceTier);
 
       function log(msg) {
         try {

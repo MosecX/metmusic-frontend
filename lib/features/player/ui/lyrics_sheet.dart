@@ -471,6 +471,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
           line: line,
           lit: lit,
           distance: lyricsDistance(row.index, anchorIndex, lit: lit),
+          preActive: row.index == anchorIndex + 1,
           level: level,
           positionMs: positionMs,
           onTap: () => _seekToLine(line),

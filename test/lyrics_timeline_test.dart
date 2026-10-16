@@ -17,13 +17,13 @@ void main() {
   }
 
   group('escalera de distancia', () {
-    test('opacidad 1 / .72 / .58 / .47 / .38 con contraste marcado', () {
+    test('opacidad 1 / .62 / .45 (escalera Apple Music)', () {
       expect(lyricsOpacity(0), 1.0);
-      expect(lyricsOpacity(1), 0.72);
-      expect(lyricsOpacity(2), 0.58);
-      expect(lyricsOpacity(3), 0.47);
-      expect(lyricsOpacity(4), 0.38);
-      expect(lyricsOpacity(99), 0.38);
+      expect(lyricsOpacity(1), 0.62);
+      expect(lyricsOpacity(2), 0.45);
+      expect(lyricsOpacity(3), 0.45);
+      expect(lyricsOpacity(4), 0.45);
+      expect(lyricsOpacity(99), 0.45);
       expect(lyricsOpacity(-1), 1.0);
     });
 
