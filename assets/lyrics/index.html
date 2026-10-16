@@ -36,6 +36,19 @@
       font-weight: 700;
     }
   </style>
+  <!-- Puente de salida. En el WebView nativo webview_flutter inyecta el
+       canal JS `AmLyricsBridge` antes de cargar la pagina; en la iframe
+       web del host no existe, asi que este shim reenvia los mensajes al
+       padre por postMessage (JSON string, igual que el canal nativo). -->
+  <script>
+    if (typeof window.AmLyricsBridge === 'undefined') {
+      window.AmLyricsBridge = {
+        postMessage: function(message) {
+          try { window.parent.postMessage(message, '*'); } catch (e) {}
+        }
+      };
+    }
+  </script>
   <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
        desde origin file:// en Android WebView. -->
   <script src="./am-lyrics.iife.js"></script>
@@ -148,6 +161,76 @@
         }
         s.textContent = css;
       };
+
+      // Configuracion compartida entre el WebView nativo (Dart la llama
+      // por runJavaScript) y el host web (llega por postMessage). Vive
+      // aca para no duplicar la logica de atributos y eventos.
+      window.__configureAmLyrics = function(opts) {
+        customElements.whenDefined('am-lyrics').then(() => {
+          const report = (type, message) => {
+            AmLyricsBridge.postMessage(JSON.stringify({
+              type: type, message: message
+            }));
+          };
+          report('debug', 'am-lyrics custom element defined');
+          const target = document.querySelector('am-lyrics');
+          if (!target) {
+            AmLyricsBridge.postMessage(JSON.stringify({
+              type: 'error',
+              message: 'am-lyrics element not in DOM'
+            }));
+            return;
+          }
+          target.setAttribute('track-id', opts.trackId);
+          target.setAttribute('api-base', opts.apiBase);
+          target.setAttribute('api-token', opts.apiToken);
+          target.setAttribute('highlight-color', opts.highlightColor);
+          target.setAttribute('autoscroll', '');
+          // interpolate lo decide este script (logica isLowEnd): no se
+          // toca aqui, si no se re-encenderia en gama baja.
+          if (opts.noBlur) {
+            target.setAttribute('no-blur', '');
+          } else {
+            // Toggle real: el HTML lo trae por defecto, asi que para
+            // poder volver a blur hay que quitar el atributo.
+            target.removeAttribute('no-blur');
+          }
+          target.addEventListener('line-click', (e) => {
+            AmLyricsBridge.postMessage(JSON.stringify({
+              type: 'line-click',
+              timestamp: e.detail.timestamp
+            }));
+          });
+          window.__amLyrics = target;
+          AmLyricsBridge.postMessage(JSON.stringify({ type: 'ready' }));
+        }).catch((err) => {
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'error',
+            message: 'whenDefined failed: ' + String(err)
+          }));
+        });
+      };
+
+      // Puente de entrada del host web (iframe): Dart manda configure /
+      // time / style por postMessage como JSON string. El WebView nativo
+      // no pasa por aca: llama a las funciones directamente.
+      window.addEventListener('message', function(e) {
+        if (typeof e.data !== 'string') return;
+        let d;
+        try { d = JSON.parse(e.data); } catch (err) { return; }
+        if (!d || d.__metmusic !== true) return;
+        switch (d.type) {
+          case 'configure':
+            window.__configureAmLyrics(d);
+            break;
+          case 'time':
+            window.__setLyricsTime(d.ms, d.playing);
+            break;
+          case 'style':
+            window.__injectLyricsStyle(d.css);
+            break;
+        }
+      });
     })();
   </script>
 </body>

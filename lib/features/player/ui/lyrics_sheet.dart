@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -14,7 +13,8 @@ import '../../../core/utils/lyrics_timeline.dart';
 import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../services/service_providers.dart';
-import '../lyrics/webview/am_lyrics_webview.dart';
+import '../lyrics/webview/am_lyrics_webview.dart'
+    if (dart.library.html) '../lyrics/webview/am_lyrics_html_view.dart';
 import '../providers/lyrics_provider.dart';
 import '../providers/player_provider.dart';
 import 'lyrics/lyrics_gap.dart';
@@ -382,11 +382,12 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     );
 
     // Karaoke con am-lyrics: con `sync_level == word` o `line` y track con id.
-    // El renderer nativo (`list`) se conserva como fallback para `none` y
-    // para cualquier caso sin track id.
-    // En web no existe webview_flutter: el renderer nativo de la hoja hace
-    // de fallback (misma UI, sin el motor de letras del WebView).
-    final useWebView = !kIsWeb &&
+    // El renderer nativo (`list`) se conserva como fallback para `none`,
+    // para cualquier caso sin track id y para plataformas sin vista
+    // (`amLyricsPlatformViewSupported` es false: p. ej. builds web wasm).
+    // En web (dart2js/js) la vista es una iframe con el mismo index.html
+    // del WebView nativo (am_lyrics_html_view.dart, import condicional).
+    final useWebView = amLyricsPlatformViewSupported &&
         (level == LyricsSyncLevel.word || level == LyricsSyncLevel.line) &&
         trackId.isNotEmpty;
     debugPrint('[lyrics_sheet] level=$level '
