@@ -1,14 +1,17 @@
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/lyrics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/lyrics_timeline.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
 import '../../../services/service_providers.dart';
 import '../lyrics/webview/am_lyrics_webview.dart';
@@ -376,38 +379,43 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     // El renderer nativo (`list`) se conserva como fallback para `none` y
     // para cualquier caso sin track id.
     final webViewTrackId = state.track?.trackId ?? '';
-    final useWebView =
+    // En web no existe webview_flutter: el renderer nativo de la hoja hace
+    // de fallback (misma UI, sin el motor de letras del WebView).
+    final useWebView = !kIsWeb &&
         (level == LyricsSyncLevel.word || level == LyricsSyncLevel.line) &&
-            webViewTrackId.isNotEmpty;
+        webViewTrackId.isNotEmpty;
     debugPrint('[lyrics_sheet] level=$level '
         'trackId=${state.track?.trackId} useWebView=$useWebView '
         'hasText=$hasText lines=${lines.length}');
-    final Widget body = useWebView
-        ? Column(
-            children: [
-              _header(synced: synced, landscape: landscape),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.paddingOf(context).bottom,
-                  ),
-                  child: AmLyricsWebView(
-                    key: _lyricsWebViewKey,
-                    trackId: webViewTrackId,
-                    apiBase: ref.watch(baseUrlHolderProvider).value,
-                    apiToken: ref.watch(apiTokenHolderProvider).value,
-                    initialPosition: Duration(milliseconds: positionMs),
-                    noBlur: true, // gama baja: sin blur en el shadow DOM
-                    onLineTap: (position) =>
-                        ref.read(playerProvider.notifier).seek(position),
-                    onError: (msg) => debugPrint('[am-lyrics] ERROR: $msg'),
-                    onDebug: (msg) => debugPrint('[am-lyrics] $msg'),
+    final Widget body = ContentWidth(
+      maxWidth: AppConstants.readingMaxWidth,
+      child: useWebView
+          ? Column(
+              children: [
+                _header(synced: synced, landscape: landscape),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: AmLyricsWebView(
+                      key: _lyricsWebViewKey,
+                      trackId: webViewTrackId,
+                      apiBase: ref.watch(baseUrlHolderProvider).value,
+                      apiToken: ref.watch(apiTokenHolderProvider).value,
+                      initialPosition: Duration(milliseconds: positionMs),
+                      noBlur: true, // gama baja: sin blur en el shadow DOM
+                      onLineTap: (position) =>
+                          ref.read(playerProvider.notifier).seek(position),
+                      onError: (msg) => debugPrint('[am-lyrics] ERROR: $msg'),
+                      onDebug: (msg) => debugPrint('[am-lyrics] $msg'),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          )
-        : list;
+              ],
+            )
+          : list,
+    );
 
     // Fondo = artwork desenfocado + velo oscuro.
     return Stack(

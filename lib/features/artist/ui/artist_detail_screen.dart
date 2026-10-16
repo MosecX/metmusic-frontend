@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/album_card.dart';
 import '../../../core/widgets/collapsible_header.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
@@ -32,33 +33,35 @@ class ArtistDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       extendBody: true,
       bottomNavigationBar: const GlobalMiniPlayer(),
-      body: artist.when(
-        loading: () => const _Loading(),
-        error: (error, _) => Stack(
-          children: [
-            const _Background(),
-            SafeArea(
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GlassBackButton(
-                      onTap: () => Navigator.of(context).maybePop(),
+      body: ContentWidth(
+        child: artist.when(
+          loading: () => const _Loading(),
+          error: (error, _) => Stack(
+            children: [
+              const _Background(),
+              SafeArea(
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GlassBackButton(
+                        onTap: () => Navigator.of(context).maybePop(),
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: ErrorState(
-                      error: error,
-                      onRetry: () =>
-                          ref.invalidate(artistDetailProvider(artistId)),
+                    Expanded(
+                      child: ErrorState(
+                        error: error,
+                        onRetry: () =>
+                            ref.invalidate(artistDetailProvider(artistId)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          data: (data) => _Content(artist: data),
         ),
-        data: (data) => _Content(artist: data),
       ),
     );
   }

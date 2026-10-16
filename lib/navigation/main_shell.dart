@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
+import '../core/widgets/content_width.dart';
 import '../core/widgets/glass_card.dart';
 import '../features/player/providers/player_provider.dart';
 import '../features/player/ui/mini_player.dart';
@@ -54,7 +56,13 @@ class _MainShellState extends ConsumerState<MainShell> {
       extendBody: true,
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(bottom: false, child: widget.child),
+        child: SafeArea(
+          bottom: false,
+          child: ContentWidth(
+            maxWidth: AppConstants.contentMaxWidth,
+            child: widget.child,
+          ),
+        ),
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -122,20 +130,23 @@ class _GlassNavBar extends StatelessWidget {
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: GlassCard(
-        borderRadius: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        child: Row(
-          children: [
-            for (var i = 0; i < items.length; i++)
-              Expanded(
-                child: _NavButton(
-                  item: items[i],
-                  selected: i == currentIndex,
-                  onTap: () => onSelect(items[i]),
+      child: ContentWidth(
+        maxWidth: AppConstants.readingMaxWidth,
+        child: GlassCard(
+          borderRadius: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: _NavButton(
+                    item: items[i],
+                    selected: i == currentIndex,
+                    onTap: () => onSelect(items[i]),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

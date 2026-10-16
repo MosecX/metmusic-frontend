@@ -13,6 +13,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/glass_player_card.dart';
 import '../../canvas/providers/canvas_provider.dart';
@@ -212,9 +213,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 72, 20, 8),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: below,
+                        child: ContentWidth(
+                          maxWidth: AppConstants.playerMaxWidth,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: below,
+                          ),
                         ),
                       ),
                     ),
@@ -228,7 +232,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                     right: 0,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _Header(state: state),
+                      child: ContentWidth(
+                        maxWidth: AppConstants.playerMaxWidth,
+                        child: _Header(state: state),
+                      ),
                     ),
                   ),
                 ],
@@ -316,7 +323,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             ? Column(children: columnChildren)
             : Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(children: columnChildren),
+                child: ContentWidth(
+                  maxWidth: AppConstants.playerMaxWidth,
+                  child: Column(children: columnChildren),
+                ),
               ),
       ),
     );

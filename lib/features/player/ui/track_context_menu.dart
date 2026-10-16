@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/radio_mix.dart';
 import '../../../core/models/track.dart';
 import '../../../core/models/track_details.dart';
@@ -13,6 +14,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../navigation/routes.dart';
@@ -162,43 +164,46 @@ class TrackContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        // La hoja modal sin `isScrollControlled` se limita a 9/16 de la
-        // pantalla: con tipografía grande o en pantallas bajas la columna
-        // desbordaba y el ClipRRect de GlassCard se comía el último ítem
-        // (Metadatos). Con shrinkWrap la lista abraza el contenido y, si
-        // no entra, scrollea.
-        child: ListView(
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(),
-          children: [
-            GlassCard(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: _Cover(track: track),
-                    title: Text(
-                      track.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.body,
+      child: ContentWidth(
+        maxWidth: AppConstants.readingMaxWidth,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          // La hoja modal sin `isScrollControlled` se limita a 9/16 de la
+          // pantalla: con tipografía grande o en pantallas bajas la columna
+          // desbordaba y el ClipRRect de GlassCard se comía el último ítem
+          // (Metadatos). Con shrinkWrap la lista abraza el contenido y, si
+          // no entra, scrollea.
+          child: ListView(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(),
+            children: [
+              GlassCard(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: _Cover(track: track),
+                      title: Text(
+                        track.displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body,
+                      ),
+                      subtitle: Text(
+                        track.artist ?? 'Desconocido',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption,
+                      ),
                     ),
-                    subtitle: Text(
-                      track.artist ?? 'Desconocido',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  for (final action in actions) _buildItem(context, action),
-                ],
+                    const Divider(height: 1),
+                    for (final action in actions) _buildItem(context, action),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -294,52 +299,55 @@ class TrackDetailsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = _rows();
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        // Mismo motivo que en el menú: con 14 filas la hoja desborda el
-        // tope de 9/16 y sin scroll la mitad de los metadatos quedaba
-        // fuera de pantalla.
-        child: ListView(
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(),
-          children: [
-            GlassCard(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const ListTile(
-                    leading: Icon(LucideIcons.info, size: 20),
-                    title: Text('Metadatos', style: AppTextStyles.title),
-                  ),
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          details.title,
-                          style: AppTextStyles.subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (details.artist != null)
+      child: ContentWidth(
+        maxWidth: AppConstants.readingMaxWidth,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          // Mismo motivo que en el menú: con 14 filas la hoja desborda el
+          // tope de 9/16 y sin scroll la mitad de los metadatos quedaba
+          // fuera de pantalla.
+          child: ListView(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(),
+            children: [
+              GlassCard(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ListTile(
+                      leading: Icon(LucideIcons.info, size: 20),
+                      title: Text('Metadatos', style: AppTextStyles.title),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            details.artist!,
-                            style: AppTextStyles.caption,
-                            maxLines: 1,
+                            details.title,
+                            style: AppTextStyles.subtitle,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                      ],
+                          if (details.artist != null)
+                            Text(
+                              details.artist!,
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  for (final row in rows)
-                    _DetailRow(label: row.label, value: row.value),
-                ],
+                    for (final row in rows)
+                      _DetailRow(label: row.label, value: row.value),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

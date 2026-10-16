@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
 import '../../../core/widgets/collapsible_header.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/shimmer_placeholder.dart';
@@ -59,36 +60,38 @@ class PlaylistDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       extendBody: true,
       bottomNavigationBar: const GlobalMiniPlayer(),
-      body: async.when(
-        loading: () => const _Loading(),
-        error: (error, _) => Stack(
-          children: [
-            const _Background(),
-            SafeArea(
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GlassBackButton(
-                      onTap: () => Navigator.of(context).maybePop(),
-                    ),
-                  ),
-                  Expanded(
-                    child: ErrorState(
-                      error: error,
-                      onRetry: () => ref.invalidate(
-                        isUserPlaylist
-                            ? userPlaylistDetailProvider(playlistId)
-                            : playlistDetailProvider(playlistId),
+      body: ContentWidth(
+        child: async.when(
+          loading: () => const _Loading(),
+          error: (error, _) => Stack(
+            children: [
+              const _Background(),
+              SafeArea(
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GlassBackButton(
+                        onTap: () => Navigator.of(context).maybePop(),
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: ErrorState(
+                        error: error,
+                        onRetry: () => ref.invalidate(
+                          isUserPlaylist
+                              ? userPlaylistDetailProvider(playlistId)
+                              : playlistDetailProvider(playlistId),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          data: (view) => _Content(view: view, playlistId: playlistId),
         ),
-        data: (view) => _Content(view: view, playlistId: playlistId),
       ),
     );
   }

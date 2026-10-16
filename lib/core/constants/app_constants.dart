@@ -28,6 +28,16 @@ class AppConstants {
   static const double miniPlayerHeight = 64;
   static const double navBarHeight = 68;
 
+  // --- Responsive (web/escritorio/tablet) ---
+  /// Columna máxima del contenido de las páginas en pantallas anchas.
+  static const double contentMaxWidth = 840;
+
+  /// Columna máxima de bloques de lectura (letras, cola, hojas y barras).
+  static const double readingMaxWidth = 640;
+
+  /// Columna máxima del reproductor a pantalla completa.
+  static const double playerMaxWidth = 560;
+
   /// Padding inferior del `MiniPlayer` dentro del `bottomNavigationBar`.
   ///
   /// El contenido de las pantallas lo necesita para no quedar tapado cuando hay

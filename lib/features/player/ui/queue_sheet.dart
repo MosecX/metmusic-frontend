@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/duration_formatter.dart';
+import '../../../core/widgets/content_width.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/glass_player_card.dart';
 import '../providers/player_provider.dart';
@@ -38,85 +40,88 @@ class QueueSheet extends ConsumerWidget {
       maxChildSize: 0.92,
       expand: false,
       builder: (context, scrollController) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 12,
-            right: 12,
-            bottom: MediaQuery.paddingOf(context).bottom + 12,
-          ),
-          child: GlassPlayerCard(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Column(
-              children: [
-                _Handle(),
-                Row(
-                  children: [
-                    const Icon(LucideIcons.listMusic,
-                        size: 18, color: AppColors.accent),
-                    const SizedBox(width: 8),
-                    const Text('En cola', style: AppTextStyles.title),
-                    const SizedBox(width: 8),
-                    Text('(${queue.tracks.length})',
-                        style: AppTextStyles.caption),
-                    const Spacer(),
-                    if (queue.tracks.isNotEmpty)
-                      TextButton.icon(
-                        onPressed: () {
-                          controller.clearQueue();
-                          Navigator.of(context).maybePop();
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        icon: const Icon(LucideIcons.trash2, size: 15),
-                        label: const Text('Limpiar'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: queue.tracks.isEmpty
-                      ? const EmptyState(
-                          icon: LucideIcons.listMusic,
-                          title: 'La cola está vacía',
-                          subtitle: 'Agregá canciones desde cualquier lista.',
-                        )
-                      : ReorderableListView.builder(
-                          scrollController: scrollController,
-                          padding: const EdgeInsets.only(bottom: 12),
-                          itemCount: queue.tracks.length,
-                          // onReorderItem ya entrega el índice final ajustado.
-                          onReorderItem: (oldIndex, newIndex) {
-                            ref
-                                .read(queueProvider.notifier)
-                                .reorder(oldIndex, newIndex);
+        return ContentWidth(
+          maxWidth: AppConstants.readingMaxWidth,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 12,
+              right: 12,
+              bottom: MediaQuery.paddingOf(context).bottom + 12,
+            ),
+            child: GlassPlayerCard(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+              child: Column(
+                children: [
+                  _Handle(),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.listMusic,
+                          size: 18, color: AppColors.accent),
+                      const SizedBox(width: 8),
+                      const Text('En cola', style: AppTextStyles.title),
+                      const SizedBox(width: 8),
+                      Text('(${queue.tracks.length})',
+                          style: AppTextStyles.caption),
+                      const Spacer(),
+                      if (queue.tracks.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            controller.clearQueue();
+                            Navigator.of(context).maybePop();
                           },
-                          itemBuilder: (context, index) {
-                            final track = queue.tracks[index];
-                            final isActive =
-                                index == queue.currentIndex && player.hasTrack;
-                            return _QueueTile(
-                              key: ValueKey('${track.trackId}_$index'),
-                              index: index,
-                              title: track.displayTitle,
-                              subtitle: track.artist ?? '',
-                              duration: track.duration,
-                              isActive: isActive,
-                              isPlaying: isActive && player.playing,
-                              onTap: () => ref
-                                  .read(queueProvider.notifier)
-                                  .jumpTo(index),
-                              onRemove: () => ref
-                                  .read(queueProvider.notifier)
-                                  .removeAt(index),
-                              onLongPress: () =>
-                                  openTrackContextMenu(context, ref, track),
-                            );
-                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          icon: const Icon(LucideIcons.trash2, size: 15),
+                          label: const Text('Limpiar'),
                         ),
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: queue.tracks.isEmpty
+                        ? const EmptyState(
+                            icon: LucideIcons.listMusic,
+                            title: 'La cola está vacía',
+                            subtitle: 'Agregá canciones desde cualquier lista.',
+                          )
+                        : ReorderableListView.builder(
+                            scrollController: scrollController,
+                            padding: const EdgeInsets.only(bottom: 12),
+                            itemCount: queue.tracks.length,
+                            // onReorderItem ya entrega el índice final ajustado.
+                            onReorderItem: (oldIndex, newIndex) {
+                              ref
+                                  .read(queueProvider.notifier)
+                                  .reorder(oldIndex, newIndex);
+                            },
+                            itemBuilder: (context, index) {
+                              final track = queue.tracks[index];
+                              final isActive = index == queue.currentIndex &&
+                                  player.hasTrack;
+                              return _QueueTile(
+                                key: ValueKey('${track.trackId}_$index'),
+                                index: index,
+                                title: track.displayTitle,
+                                subtitle: track.artist ?? '',
+                                duration: track.duration,
+                                isActive: isActive,
+                                isPlaying: isActive && player.playing,
+                                onTap: () => ref
+                                    .read(queueProvider.notifier)
+                                    .jumpTo(index),
+                                onRemove: () => ref
+                                    .read(queueProvider.notifier)
+                                    .removeAt(index),
+                                onLongPress: () =>
+                                    openTrackContextMenu(context, ref, track),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
