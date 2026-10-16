@@ -39,12 +39,20 @@
   <!-- Puente de salida. En el WebView nativo webview_flutter inyecta el
        canal JS `AmLyricsBridge` antes de cargar la pagina; en la iframe
        web del host no existe, asi que este shim reenvia los mensajes al
-       padre por postMessage (JSON string, igual que el canal nativo). -->
+       host: canal primario un CustomEvent `metmusic-lyrics` despachado
+       en el `document` del padre (misma origen, sin MessageEvents) y
+       fallback postMessage. -->
   <script>
     if (typeof window.AmLyricsBridge === 'undefined') {
       window.AmLyricsBridge = {
         postMessage: function(message) {
-          try { window.parent.postMessage(message, '*'); } catch (e) {}
+          try {
+            window.parent.document.dispatchEvent(
+              new CustomEvent('metmusic-lyrics', { detail: message })
+            );
+          } catch (e) {
+            try { window.parent.postMessage(message, '*'); } catch (e2) {}
+          }
         }
       };
     }
@@ -151,15 +159,32 @@
       // Inyecta CSS en el shadowRoot de am-lyrics (patron Monochrome:
       // applyFullscreenLyricsShadowTweaks). querySelector en vez de
       // getElementById: no todos los shadow roots exponen getElementById.
-      window.__injectLyricsStyle = function(css) {
-        const root = el.shadowRoot || el;
+      // Si el shadowRoot todavia no existe (upgrade de Lit pendiente) se
+      // reintenta: inyectar en light DOM no aplicaria a nada.
+      let pendingLyricsCss = null;
+      let lyricsCssTries = 0;
+      function applyLyricsCss() {
+        if (pendingLyricsCss === null) return;
+        const root = el.shadowRoot;
+        if (!root) {
+          if (lyricsCssTries < 20) {
+            lyricsCssTries++;
+            setTimeout(applyLyricsCss, 50);
+          }
+          return;
+        }
+        lyricsCssTries = 0;
         let s = root.querySelector('#metmusic-lyrics-style');
         if (!s) {
           s = document.createElement('style');
           s.id = 'metmusic-lyrics-style';
           root.appendChild(s);
         }
-        s.textContent = css;
+        s.textContent = pendingLyricsCss;
+      }
+      window.__injectLyricsStyle = function(css) {
+        pendingLyricsCss = css;
+        applyLyricsCss();
       };
 
       // Configuracion compartida entre el WebView nativo (Dart la llama

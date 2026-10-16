@@ -29,6 +29,7 @@ class AmLyricsWebView extends StatefulWidget {
   final String apiToken;
   final String highlightColor;
   final Duration initialPosition;
+  final bool initialPlaying;
   final bool noBlur;
   final ValueChanged<Duration>? onLineTap;
   final ValueChanged<String>? onError;
@@ -41,6 +42,7 @@ class AmLyricsWebView extends StatefulWidget {
     required this.apiToken,
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
+    this.initialPlaying = false,
     this.noBlur = true,
     this.onLineTap,
     this.onError,
@@ -54,6 +56,8 @@ class AmLyricsWebView extends StatefulWidget {
 class AmLyricsWebViewState extends State<AmLyricsWebView> {
   late final WebViewController _ctrl;
   Timer? _pushTimer;
+  Timer? _styleRetryShort;
+  Timer? _styleRetryLong;
   bool _ready = false;
   bool _configured = false;
   Timer? _configureTimeout;
@@ -70,6 +74,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   void initState() {
     super.initState();
     _pendingMs = widget.initialPosition.inMilliseconds.toDouble();
+    _pendingPlaying = widget.initialPlaying;
 
     _ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -121,6 +126,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   @override
   void dispose() {
     _pushTimer?.cancel();
+    _styleRetryShort?.cancel();
+    _styleRetryLong?.cancel();
     _configureTimeout?.cancel();
     super.dispose();
   }
@@ -131,7 +138,11 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   }
 
   Future<void> _pushTime() async {
-    if (!_ready) return;
+    // Basta con que onPageFinished haya disparado `_configure`: el JS de
+    // index.html existe desde que el IIFE corrio (parse del documento).
+    // No se gatea en `_ready` para que un 'ready' perdido del canal no
+    // deje la sincronizacion muerta para siempre.
+    if (!_configured) return;
     final ms = _pendingMs;
     final playing = _pendingPlaying ? 'true' : 'false';
     await _ctrl.runJavaScript(
@@ -166,6 +177,19 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     await _ctrl.runJavaScript(
       'window.__configureAmLyrics && window.__configureAmLyrics($options);',
     );
+
+    // Empuje de tiempo y estilo inmediatos, sin esperar el 'ready' del
+    // canal JS: un mensaje perdido no puede dejar las letras congeladas
+    // ni el CSS sin inyectar. Todo es idempotente.
+    _startPushTimer();
+    unawaited(_pushTime());
+    unawaited(_injectStyle(amLyricsShadowCss));
+    _styleRetryShort = Timer(const Duration(seconds: 2), () {
+      if (mounted) unawaited(_injectStyle(amLyricsShadowCss));
+    });
+    _styleRetryLong = Timer(const Duration(seconds: 5), () {
+      if (mounted) unawaited(_injectStyle(amLyricsShadowCss));
+    });
   }
 
   /// Inyecta CSS en el shadowRoot de am-lyrics (patron Monochrome).

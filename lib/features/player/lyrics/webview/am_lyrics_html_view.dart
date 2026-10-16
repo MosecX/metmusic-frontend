@@ -24,12 +24,20 @@ const bool amLyricsPlatformViewSupported = true;
 /// `am_lyrics_webview.dart`, misma API).
 ///
 /// El componente y su loop rAF de 30fps viven en la iframe, igual que en
-/// el WebView nativo: Dart solo empuja updates cada ~250ms. El puente
-/// cruza en ambos sentidos por `postMessage` (JSON strings):
-///   - Dart -> iframe: `configure` / `time` / `style` (ver el listener
-///     de index.html).
-///   - iframe -> Dart: lo que index.html emite por el shim
-///     `AmLyricsBridge` (ready / line-click / error / debug).
+/// el WebView nativo: Dart solo empuja updates cada ~250ms.
+///
+/// Puente Dart <-> iframe:
+///   - Dart -> iframe: postMessage JSON (`configure` / `time` / `style`)
+///     que index.html escucha en su window.
+///   - iframe -> Dart: la iframe despacha un CustomEvent
+///     `metmusic-lyrics` en el `document` del host, con el mensaje
+///     (ready / debug / error / line-click) en `detail`. Si el dispatch
+///     no fuera posible, el shim de index.html cae a postMessage y el
+///     listener de `_messageSub` lo recoge.
+///
+/// La sincronizacion NO depende del handshake `ready`: el Timer de push
+/// arranca apenas carga la iframe (las funciones JS ya existen) para que
+/// un mensaje perdido no deje las letras congeladas.
 ///
 /// El scroll de las letras lo maneja el navegador dentro de la iframe:
 /// los eventos del DOM no pasan por la arena de gestos de Flutter, asi
@@ -40,6 +48,7 @@ class AmLyricsWebView extends StatefulWidget {
   final String apiToken;
   final String highlightColor;
   final Duration initialPosition;
+  final bool initialPlaying;
   final bool noBlur;
   final ValueChanged<Duration>? onLineTap;
   final ValueChanged<String>? onError;
@@ -52,6 +61,7 @@ class AmLyricsWebView extends StatefulWidget {
     required this.apiToken,
     this.highlightColor = '#BF5AF2',
     this.initialPosition = Duration.zero,
+    this.initialPlaying = false,
     this.noBlur = true,
     this.onLineTap,
     this.onError,
@@ -65,6 +75,11 @@ class AmLyricsWebView extends StatefulWidget {
 class AmLyricsWebViewState extends State<AmLyricsWebView> {
   static int _nextViewId = 0;
 
+  /// Canal primario iframe -> Dart: la iframe despacha un CustomEvent con
+  /// este nombre en el `document` del host (misma origen).
+  static const html.EventStreamProvider<html.Event> _emitEvents =
+      html.EventStreamProvider<html.Event>('metmusic-lyrics');
+
   late final String _viewType = 'metmusic-am-lyrics-${_nextViewId++}';
   final html.IFrameElement _iframe = html.IFrameElement()
     ..src = 'assets/assets/lyrics/index.html'
@@ -74,9 +89,12 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     ..style.backgroundColor = 'transparent'
     ..setAttribute('scrolling', 'no');
 
-  StreamSubscription<html.Event>? _loadSub;
+  StreamSubscription<html.Event>? _emitSub;
   StreamSubscription<html.MessageEvent>? _messageSub;
+  StreamSubscription<html.Event>? _loadSub;
   Timer? _pushTimer;
+  Timer? _styleRetryShort;
+  Timer? _styleRetryLong;
   bool _ready = false;
   bool _configured = false;
   Timer? _configureTimeout;
@@ -92,16 +110,31 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   void initState() {
     super.initState();
     _pendingMs = widget.initialPosition.inMilliseconds.toDouble();
+    _pendingPlaying = widget.initialPlaying;
 
     ui_web.platformViewRegistry.registerViewFactory(
       _viewType,
       (int viewId) => _iframe,
     );
 
+    _emitSub = _emitEvents.forTarget(html.window.document).listen(_onDomEmit);
+    // Fallback del shim de index.html si el CustomEvent no pudiera
+    // despacharse.
     _messageSub = html.window.onMessage.listen(_onMessage);
     _loadSub = _iframe.onLoad.listen((_) {
       widget.onDebug?.call('iframe onLoad fired');
       _configure();
+      // El empuje de tiempo NO depende del handshake 'ready': las
+      // funciones de index.html ya existen (el IIFE corrio al parsear)
+      // y un push temprano es inofensivo. Asi la sincronizacion no
+      // puede quedarse muerta por un mensaje perdido.
+      _startPushTimer();
+      _pushTime();
+      // Refuerzo de estilo: idempotente (index.html actualiza el mismo
+      // <style> y reintenta si el shadowRoot aun no existe).
+      _injectStyle();
+      _styleRetryShort = Timer(const Duration(seconds: 2), _injectStyle);
+      _styleRetryLong = Timer(const Duration(seconds: 5), _injectStyle);
     });
   }
 
@@ -110,32 +143,45 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     // Parar el rAF de la iframe antes de que Flutter la desmonte: sin
     // este push final el loop seguiria corriendo sobre una iframe
     // desprendida.
-    _post({
-      'type': 'time',
-      'ms': _pendingMs,
-      'playing': false,
-    });
+    _pushTime(playingOverride: false);
     _pushTimer?.cancel();
+    _styleRetryShort?.cancel();
+    _styleRetryLong?.cancel();
     _configureTimeout?.cancel();
     _loadSub?.cancel();
+    _emitSub?.cancel();
     _messageSub?.cancel();
     _iframe.remove();
     super.dispose();
   }
 
   // -------------------------------------------------------------------------
-  // Puente (postMessage, JSON string en ambos sentidos)
+  // Puente iframe -> Dart
   // -------------------------------------------------------------------------
 
+  /// Mensajes que la iframe despacha como CustomEvent en el `document`
+  /// del host. El evento se crea en el realm de la iframe, asi que se
+  /// lee `detail` como dynamic en vez de castear a CustomEvent.
+  void _onDomEmit(html.Event event) {
+    final dynamic detail = (event as dynamic).detail;
+    if (detail is String) {
+      _process(detail);
+    }
+  }
+
+  /// Fallback: mensajes del shim por postMessage.
   void _onMessage(html.MessageEvent event) {
     if (event.source != _iframe.contentWindow) return;
     if (event.origin != html.window.location.origin) return;
     final data = event.data;
     if (data is! String) return;
+    _process(data);
+  }
 
+  void _process(String raw) {
     final Map<String, dynamic> map;
     try {
-      map = jsonDecode(data) as Map<String, dynamic>;
+      map = jsonDecode(raw) as Map<String, dynamic>;
     } catch (_) {
       return;
     }
@@ -149,6 +195,7 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
         _ready = true;
         _configureTimeout?.cancel();
         widget.onDebug?.call('am-lyrics ready');
+        // Idempotentes: por si el 'ready' llega antes que onLoad.
         _startPushTimer();
         _pushTime();
         _injectStyle();
@@ -162,6 +209,10 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Puente Dart -> iframe (postMessage JSON)
+  // -------------------------------------------------------------------------
+
   void _post(Map<String, Object?> payload) {
     payload['__metmusic'] = true;
     _iframe.contentWindow?.postMessage(jsonEncode(payload), '*');
@@ -174,8 +225,8 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     _configureTimeout = Timer(const Duration(seconds: 5), () {
       if (!_ready) {
         widget.onError?.call(
-          'timeout: am-lyrics no se registro en 5s. '
-          'Revisar carga de am-lyrics.iife.js en la iframe.',
+          'timeout: am-lyrics no reporto ready en 5s. '
+          'Revisar am-lyrics y su iife en la iframe.',
         );
       }
     });
@@ -195,12 +246,12 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
     _pushTimer = Timer.periodic(_pushInterval, (_) => _pushTime());
   }
 
-  void _pushTime() {
-    if (!_ready) return;
+  void _pushTime({bool? playingOverride}) {
+    final playing = playingOverride ?? _pendingPlaying;
     _post({
       'type': 'time',
       'ms': _pendingMs,
-      'playing': _pendingPlaying,
+      'playing': playing,
     });
   }
 

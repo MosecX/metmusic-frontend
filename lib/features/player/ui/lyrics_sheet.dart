@@ -206,11 +206,12 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   Widget build(BuildContext context) {
     // Record sin la posición: el `ref.watch(position)` de abajo es el que
     // decide los repintados de la hoja (5 Hz); el resto cambia poco.
-    final (trackId, durationMs, artworkUrl) = ref.watch(
+    final (trackId, durationMs, artworkUrl, playing) = ref.watch(
       playerProvider.select((s) => (
             s.track?.trackId ?? '',
             s.duration.inMilliseconds,
             s.artworkUrl,
+            s.playing,
           )),
     );
     final positionMs =
@@ -276,6 +277,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
           lines: lines,
           level: level,
           synced: synced,
+          playing: playing,
           rows: rows,
           litIndex: litIndex,
           anchorIndex: anchorIndex,
@@ -298,6 +300,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     required List<SyncedLine> lines,
     required LyricsSyncLevel level,
     required bool synced,
+    required bool playing,
     required List<_LyricsRow> rows,
     required int litIndex,
     required int anchorIndex,
@@ -410,6 +413,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                       apiBase: ref.watch(baseUrlHolderProvider).value,
                       apiToken: ref.watch(apiTokenHolderProvider).value,
                       initialPosition: Duration(milliseconds: positionMs),
+                      // Estado inicial real: sin esto el rAF interno
+                      // nunca arranca si el usuario abre la hoja con la
+                      // cancion ya sonando y no pausa/reanuda.
+                      initialPlaying: playing,
                       noBlur: true, // gama baja: sin blur en el shadow DOM
                       onLineTap: (position) =>
                           ref.read(playerProvider.notifier).seek(position),
