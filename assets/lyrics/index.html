@@ -5,50 +5,42 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
+    /* NO usar contain: strict en html/body. contain: size hace que el
+       contenedor tenga tamaño intrínseco 0x0 y rompe el layout de todo
+       lo que esté dentro, incluido el canvas fullscreen. */
     html, body {
-      margin: 0; padding: 0; height: 100%;
+      margin: 0; padding: 0; width: 100%; height: 100%;
       background: transparent; overflow: hidden;
       -webkit-tap-highlight-color: transparent;
       -webkit-user-select: none; user-select: none;
     }
+    #kawarp-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+      margin: 0; padding: 0;
+    }
     am-lyrics {
-      /* Colores base — warm off-white, no morado (look Monochrome) */
-      --am-lyrics-highlight-color: #f6f4ef;
-      --lyplus-active-color: #f6f4ef;
-      --lyplus-text-color: rgba(246, 244, 239, 0.08);
-
-      /* Mapeo a los nombres REALES del componente: --lyplus-active-color
-         y --lyplus-text-color de arriba no los consume am-lyrics. Estos
-         dos sí: --lyplus-text-primary (activo) y --lyplus-text-secondary
-         (inactivo al 8 % como en Monochrome; el default del :host es
-         color-mix al 55 %). */
-      --lyplus-text-primary: #f6f4ef;
-      --lyplus-text-secondary: rgba(246, 244, 239, 0.08);
-
-      /* Tipografía responsiva */
-      --lyplus-font-size-base: clamp(34px, 3vw, 52px);
-      --lyplus-padding-line: 8px;
-
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      width: 100%;
+      --am-lyrics-highlight-color: #ffffff;
+      --lyrics-scroll-padding-top: 30%;
+      --lyplus-font-size-base: clamp(36px, 3.4vw, 56px);
+      --lyplus-padding-line: 10px;
+      --lyplus-text-color: rgba(255, 255, 255, 0.42);
+      --lyplus-active-color: #ffffff;
       /* Blur interno de am-lyrics anulado: el unico blur visible es
          el que inyecta Dart en el shadowRoot (coste acotado). */
       --lyplus-blur-amount: 0 !important;
       --lyplus-blur-amount-near: 0 !important;
-
-      /* Layout */
-      --lyrics-scroll-padding-top: 18%;
-
-      /* Escala y glow suaves para no romper el look */
-      --am-lyrics-highlight-radius: 8px;
-      --am-lyrics-glow-radius: 2px;
-      --am-lyrics-inactive-scale: 0.96;
-      --am-lyrics-progression-feather: 20px;
-
-      /* Base del contenedor */
-      line-height: 1.32;
-      letter-spacing: -0.04em;
+      line-height: 1.28;
+      letter-spacing: -0.025em;
       isolation: isolate;
-      height: 100%;
-      width: 100%;
+      font-weight: 600;
     }
   </style>
   <!-- Script CLASICO. NO usar type="module": los modulos ES no cargan
@@ -57,11 +49,10 @@
 </head>
 <body>
   <!-- Visualizer Kawarp (Monochrome): canvas fullscreen DETRAS de las
-       letras. z-index:-1 porque un position:fixed con z-index:0 pintaria
-       POR ENCIMA del contenido estatico de am-lyrics. Arranca oculto:
-       solo lo muestra Dart en modo visualizer. -->
-  <canvas id="kawarp-canvas"
-          style="position:fixed; inset:0; z-index:-1; pointer-events:none; display:none;"></canvas>
+       letras (regla #kawarp-canvas con z-index:0 + am-lyrics z-index:1).
+       Sin style inline: lo gobierna la regla CSS. No dibuja nada hasta
+       que Dart llama init; en modo estandar Dart lo oculta al arrancar. -->
+  <canvas id="kawarp-canvas"></canvas>
 
   <!-- no-blur anula el sistema de blur NATIVO del componente (reglas
        internas, ventana prev/next-N, JS progresivo): todo el coste
@@ -81,39 +72,46 @@
     (function() {
       const el = document.querySelector('am-lyrics');
 
-      let baseMs = 0;    // Tiempo base (recibido de Dart)
-      let basePerf = 0;  // performance.now() cuando se recibio
-      let playing = false;
-      let rafId = null;
+      const cores = navigator.hardwareConcurrency || 4;
+      const mem = navigator.deviceMemory || 4;
 
-      // Throttle a 30fps: el rAF sigue a cadencia de pantalla, pero
-      // currentTime solo se escribe 30 veces por segundo (cada write
-      // invalida estilos y dispara recálculo). Mantiene el coste
-      // bajo con o sin blur.
-      const FRAME_INTERVAL = 1000 / 30;
-      let lastFrameMs = 0;
+      // Gama baja: pocos nucleos o poca RAM -> interpolate OFF.
+      // El default de Lit es true: hay que QUITAR el atributo (el
+      // callback post-upgrade lo pone a false) Y forzar la propiedad,
+      // que es lo que dejo probado la Task 4.
+      const isLowEnd = cores <= 4 || mem <= 2;
+      window.__deviceTier = isLowEnd ? 'low' : 'high';
 
-      // Gama baja: pocos núcleos o poca RAM -> interpolate OFF.
-      // El default de Lit es true, así que hay que QUITAR el
-      // atributo (el callback post-upgrade lo pone a false) Y forzar
-      // la propiedad, que es lo que dejó probado la Task 4.
-      const isLowEnd =
-        (navigator.hardwareConcurrency || 8) <= 4 ||
-        (navigator.deviceMemory || 8) <= 4;
-      window.__isLowEnd = isLowEnd;
+      function log(msg) {
+        try {
+          AmLyricsBridge.postMessage(JSON.stringify({ type: 'debug', message: msg }));
+        } catch (e) {}
+      }
+      log('device tier: ' + window.__deviceTier + ' cores=' + cores + ' mem=' + mem);
+
       if (isLowEnd) {
         el.removeAttribute('interpolate');
         el.interpolate = false;
       }
 
-      function tick() {
+      // Throttle a 30fps: el rAF sigue a cadencia de pantalla, pero
+      // currentTime solo se escribe 30 veces por segundo (cada write
+      // invalida estilos y dispara recalculo). Mantiene el coste
+      // bajo con o sin blur.
+      const FRAME_INTERVAL = 1000 / 30;
+      let baseMs = 0;
+      let basePerf = 0;
+      let playing = false;
+      let rafId = null;
+      let lastFrameTime = 0;
+
+      function tick(now) {
         if (!playing) {
           rafId = null;
           return;
         }
-        const now = performance.now();
-        if (now - lastFrameMs >= FRAME_INTERVAL) {
-          lastFrameMs = now;
+        if (now - lastFrameTime >= FRAME_INTERVAL) {
+          lastFrameTime = now;
           el.currentTime = baseMs + (now - basePerf);
         }
         rafId = requestAnimationFrame(tick);
@@ -122,6 +120,7 @@
       function startLoop() {
         if (rafId !== null) return;
         basePerf = performance.now();
+        lastFrameTime = 0;
         rafId = requestAnimationFrame(tick);
       }
 
@@ -151,11 +150,10 @@
       };
 
       // Inyecta CSS en el shadowRoot de am-lyrics (patron Monochrome:
-      // applyFullscreenLyricsShadowTweaks).
+      // applyFullscreenLyricsShadowTweaks). querySelector en vez de
+      // getElementById: no todos los shadow roots exponen getElementById.
       window.__injectLyricsStyle = function(css) {
         const root = el.shadowRoot || el;
-        // querySelector en vez de getElementById: no todos los
-        // shadow roots exponen getElementById.
         let s = root.querySelector('#metmusic-lyrics-style');
         if (!s) {
           s = document.createElement('style');
@@ -164,6 +162,43 @@
         }
         s.textContent = css;
       };
+
+      // --- Debug del canvas Kawarp ---
+      window.__syncKawarpSize = function() {
+        const canvas = document.getElementById('kawarp-canvas');
+        if (!canvas) {
+          log('kawarp canvas missing');
+          return;
+        }
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        const rect = canvas.getBoundingClientRect();
+        log('kawarp size: viewport=' + w + 'x' + h +
+            ' buffer=' + canvas.width + 'x' + canvas.height +
+            ' rect=' + Math.round(rect.width) + 'x' + Math.round(rect.height) +
+            ' dpr=' + dpr);
+        const vis = window.__kawarpVisualizer;
+        if (vis && vis.kawarp && typeof vis.kawarp.resize === 'function') {
+          try {
+            vis.kawarp.resize(w, h);
+            log('kawarp.resize called');
+          } catch (e) {
+            log('kawarp.resize error: ' + e);
+          }
+        }
+      };
+      window.addEventListener('resize', window.__syncKawarpSize);
+      window.addEventListener('orientationchange', function() {
+        setTimeout(window.__syncKawarpSize, 150);
+      });
+      window.addEventListener('load', function() {
+        setTimeout(window.__syncKawarpSize, 200);
+      });
     })();
 
     // ---- Visualizer Kawarp: control desde Dart ----

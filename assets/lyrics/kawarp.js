@@ -37,11 +37,29 @@
         const Kawarp = window.Kawarp;
         if (!Kawarp) {
           console.warn('[Kawarp] window.Kawarp missing (kawarp-core.js)');
+          try {
+            AmLyricsBridge.postMessage(JSON.stringify({
+              type: 'debug',
+              message: 'Kawarp window.Kawarp missing (kawarp-core.js)',
+            }));
+          } catch (_) {}
           return;
         }
         this.canvas = canvas;
         this.kawarp = new Kawarp(canvas, { ...DEFAULTS });
+        try {
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'debug',
+            message: 'Kawarp instance created',
+          }));
+        } catch (e) {}
         this.kawarp.start();
+        try {
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'debug',
+            message: 'Kawarp started',
+          }));
+        } catch (e) {}
         this.isInitialized = true;
         if (this._pendingCover) {
           const url = this._pendingCover;
@@ -50,6 +68,12 @@
         }
       } catch (e) {
         console.warn('[Kawarp] init failed:', e);
+        try {
+          AmLyricsBridge.postMessage(JSON.stringify({
+            type: 'debug',
+            message: 'Kawarp init failed: ' + String(e),
+          }));
+        } catch (_) {}
       }
     }
 

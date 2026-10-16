@@ -72,12 +72,14 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   /// blur SOLO en la linea pre-active, lejanas sin filter con
   /// content-visibility y will-change acotado a active/pre-active.
   ///
-  /// Notas de especificidad (gamma): las reglas que deben ganarle a
-  /// `:host([no-blur]) .lyrics-line` (0,3,0 con !important, que fija
-  /// filter:none y transition-property sin filter) usan el prefijo
-  /// `.lyrics-container ` para subir a (0,4,0): la transicion base, el
-  /// filter de pre-active y el transform de la linea activa. Sin eso,
-  /// el blur inyectado seria invisible con el atributo no-blur puesto.
+  /// Notas de especificidad (gamma): con `no-blur` puesto el componente
+  /// aplica `:host([no-blur]) .lyrics-line` (0,3,0 con !important):
+  /// filter:none y transition-property opacity+transform. La transicion
+  /// base ya usa esa misma lista (sin filter), asi que no hay choque.
+  /// El blur de pre-active SI necesita ganarle: lleva el prefijo
+  /// `.lyrics-container ` (0,4,0), igual que el transform del
+  /// contenedor activo, que desempata contra el `scale(1)` del
+  /// componente (misma especificidad 0,3,0, orden de hojas incierto).
   static const String _monochromeShadowCss = '''
 /* Tipografía Apple Music. */
 .lyrics-line,
@@ -90,33 +92,30 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   letter-spacing: -0.025em !important;
 }
 
-/* Contain por línea. Aísla invalidación de estilos: cuando el
-   span de una palabra cambia, el navegador no recalcula el resto
-   del árbol. Es la optimización estructural más importante. */
+/* Contain por línea, versión conservadora: solo layout y paint.
+   NO contain: style (contaminaría la herencia de variables CSS) ni
+   contain: size (colapsa las líneas a 0px). Tampoco
+   content-visibility: dibujaba cajas grises con el intrinsic-size. */
 .lyrics-line {
-  contain: layout style paint;
+  contain: layout paint;
   transform-origin: left center;
-}
-.lyrics-container .lyrics-line {
   transition:
     opacity 0.32s ease,
-    filter 0.32s ease,
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
-/* Líneas lejanas: sin blur, solo opacidad reducida. .lyrics-gap va
-   excluido para no atenuar los puntos instrumentales. */
-.lyrics-line:not(.active):not(.pre-active):not(.lyrics-gap) {
-  opacity: 0.32 !important;
-  filter: none !important;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 40px;
+/* Líneas inactivas lejanas: solo opacidad, sin filter, sin
+   content-visibility, sin contain-intrinsic-size. Las gaps
+   inactivas no importan: el componente las colapsa a height:0. */
+.lyrics-line:not(.active):not(.pre-active) {
+  opacity: 0.42 !important;
 }
 
-/* Línea previa: blur suave, opacidad intermedia. */
+/* Línea previa: blur suave, opacidad intermedia. Prefijo
+   .lyrics-container para ganarle a :host([no-blur]) (0,3,0). */
 .lyrics-container .lyrics-line.pre-active {
-  opacity: 0.62 !important;
-  filter: blur(0.045em) !important;
+  opacity: 0.68 !important;
+  filter: blur(0.04em) !important;
 }
 
 /* Línea activa: sin blur, opacidad completa. */
@@ -125,15 +124,14 @@ class AmLyricsWebViewState extends State<AmLyricsWebView> {
   filter: none !important;
 }
 
-/* will-change solo en la línea activa. Las demás no lo
-   necesitan porque no están animándose en cada frame. */
-.lyrics-line.active,
-.lyrics-line.pre-active {
-  will-change: transform, opacity, filter;
+/* will-change SOLO en la línea activa. Sin will-change: filter:
+   crear y destruir capas GPU por cada cambio de línea es más caro
+   que el blur mismo. */
+.lyrics-line.active {
+  will-change: transform, opacity;
 }
 
-/* Animación de entrada de la línea activa: solo transform, para
-   que sea compositable sin repintar. */
+/* Animación de entrada: solo transform. */
 .lyrics-container .lyrics-line.active .lyrics-line-container {
   transform: scale(1.018);
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;

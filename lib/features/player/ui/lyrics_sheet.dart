@@ -498,15 +498,18 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
       );
     }
 
-    // Modo visualizer: fondo animado + velo.
+    // Modo visualizer: velo + letras. El fondo Ken-Burns nativo queda
+    // deshabilitado: Kawarp (dentro del WebView) lo reemplaza; si se
+    // montara, seguiria renderizando detras pisando el canvas.
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.hardEdge,
       children: [
-        _VisualizerBackdrop(
-          artwork: artwork,
-          controller: _ensureVisualizerBg(),
-        ),
+        // Deshabilitado: Kawarp en el WebView reemplaza este visualizer.
+        // _VisualizerBackdrop(
+        //   artwork: artwork,
+        //   controller: _ensureVisualizerBg(),
+        // ),
         const ColoredBox(color: Color(0x99000000)),
         body,
       ],
@@ -718,7 +721,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet>
 /// Fondo del visualizer: una copia desenfocada del artwork que deriva,
 /// escala (Ken-Burns) y rota con movimiento lento y claramente visible. El
 /// desenfoque se rasteriza UNA vez y se cachea; sólo corren las
-/// transformaciones baratas de GPU por frame.
+/// transformaciones baratas de GPU por frame. Deshabilitado: el montaje
+/// está comentado en el Stack del modo visualizer (Kawarp lo reemplaza).
+// ignore: unused_element
 class _VisualizerBackdrop extends StatelessWidget {
   const _VisualizerBackdrop({
     required this.artwork,
