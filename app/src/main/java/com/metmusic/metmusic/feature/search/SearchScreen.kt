@@ -45,10 +45,16 @@ import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 /**
  * Pantalla de búsqueda: campo con debounce (en el ViewModel), pestañas por
  * tipo y lista de resultados agrupada. Tocar un track lo reproduce
- * (PlayerConnection); álbumes, artistas y playlists siguen display-only.
+ * (PlayerConnection); álbumes, artistas y playlists navegan a su detalle
+ * (6E-1).
  */
 @Composable
-fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
+fun SearchScreen(
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    viewModel: SearchViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SearchScreenContent(
         state = state,
@@ -56,6 +62,9 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
         onTypeChange = viewModel::onTypeChange,
         onRetry = viewModel::retry,
         onTrackClick = viewModel::playTrackAt,
+        onAlbumClick = onAlbumClick,
+        onArtistClick = onArtistClick,
+        onPlaylistClick = onPlaylistClick,
     )
 }
 
@@ -67,6 +76,9 @@ fun SearchScreenContent(
     onTypeChange: (SearchType) -> Unit,
     onRetry: () -> Unit,
     onTrackClick: (Int) -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -95,7 +107,13 @@ fun SearchScreenContent(
                 subtitle = "No encontramos nada para \"${state.query.trim()}\".",
                 icon = Icons.Outlined.Search,
             )
-            else -> ResultsContent(state = state, onTrackClick = onTrackClick)
+            else -> ResultsContent(
+                state = state,
+                onTrackClick = onTrackClick,
+                onAlbumClick = onAlbumClick,
+                onArtistClick = onArtistClick,
+                onPlaylistClick = onPlaylistClick,
+            )
         }
     }
 }
@@ -145,7 +163,13 @@ private fun SearchTypeRow(selected: SearchType, onSelect: (SearchType) -> Unit) 
 
 /** Lista de resultados; en `ALL` agrupa por secciones. */
 @Composable
-private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
+private fun ResultsContent(
+    state: SearchState,
+    onTrackClick: (Int) -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -166,15 +190,24 @@ private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
                 }
                 if (state.results.albums.isNotEmpty()) {
                     item { MetMusicSectionHeader(title = "Álbumes") }
-                    items(state.results.albums) { album -> AlbumRow(album) }
+                    items(state.results.albums) { album ->
+                        AlbumRow(album = album, onClick = { onAlbumClick(album.albumId) })
+                    }
                 }
                 if (state.results.artists.isNotEmpty()) {
                     item { MetMusicSectionHeader(title = "Artistas") }
-                    items(state.results.artists) { artist -> ArtistRow(artist) }
+                    items(state.results.artists) { artist ->
+                        ArtistRow(artist = artist, onClick = { onArtistClick(artist.artistId) })
+                    }
                 }
                 if (state.results.playlists.isNotEmpty()) {
                     item { MetMusicSectionHeader(title = "Playlists") }
-                    items(state.results.playlists) { playlist -> PlaylistRow(playlist) }
+                    items(state.results.playlists) { playlist ->
+                        PlaylistRow(
+                            playlist = playlist,
+                            onClick = { onPlaylistClick(playlist.playlistId) },
+                        )
+                    }
                 }
             }
             SearchType.TRACKS -> itemsIndexed(
@@ -183,9 +216,18 @@ private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
             ) { index, track ->
                 TrackRow(track = track, onClick = { onTrackClick(index) })
             }
-            SearchType.ALBUMS -> items(state.results.albums) { album -> AlbumRow(album) }
-            SearchType.ARTISTS -> items(state.results.artists) { artist -> ArtistRow(artist) }
-            SearchType.PLAYLISTS -> items(state.results.playlists) { playlist -> PlaylistRow(playlist) }
+            SearchType.ALBUMS -> items(state.results.albums) { album ->
+                AlbumRow(album = album, onClick = { onAlbumClick(album.albumId) })
+            }
+            SearchType.ARTISTS -> items(state.results.artists) { artist ->
+                ArtistRow(artist = artist, onClick = { onArtistClick(artist.artistId) })
+            }
+            SearchType.PLAYLISTS -> items(state.results.playlists) { playlist ->
+                PlaylistRow(
+                    playlist = playlist,
+                    onClick = { onPlaylistClick(playlist.playlistId) },
+                )
+            }
         }
     }
 }
@@ -202,28 +244,31 @@ private fun TrackRow(track: Track, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AlbumRow(album: Album) {
+private fun AlbumRow(album: Album, onClick: () -> Unit) {
     MetMusicListItem(
         title = album.title,
         subtitle = "${album.artist ?: ""} · ${album.year}".trim('·', ' '),
         leadingUrl = album.thumbnailUrl,
+        onClick = onClick,
     )
 }
 
 @Composable
-private fun ArtistRow(artist: Artist) {
+private fun ArtistRow(artist: Artist, onClick: () -> Unit) {
     MetMusicListItem(
         title = artist.name,
         leadingUrl = artist.imageUrl,
+        onClick = onClick,
     )
 }
 
 @Composable
-private fun PlaylistRow(playlist: Playlist) {
+private fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
     MetMusicListItem(
         title = playlist.title,
         subtitle = playlist.creator ?: "${playlist.trackCount} canciones",
         leadingUrl = playlist.thumbnailUrl,
+        onClick = onClick,
     )
 }
 
@@ -258,6 +303,9 @@ private fun SearchResultsPreview() {
                 ),
             ),
             onTrackClick = {},
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
         )
     }
 }
@@ -272,6 +320,9 @@ private fun SearchScreenEmptyPreview() {
             onTypeChange = {},
             onRetry = {},
             onTrackClick = {},
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
         )
     }
 }
@@ -286,6 +337,9 @@ private fun SearchScreenNoResultsPreview() {
             onTypeChange = {},
             onRetry = {},
             onTrackClick = {},
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
         )
     }
 }
@@ -300,6 +354,9 @@ private fun SearchScreenErrorPreview() {
             onTypeChange = {},
             onRetry = {},
             onTrackClick = {},
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
         )
     }
 }

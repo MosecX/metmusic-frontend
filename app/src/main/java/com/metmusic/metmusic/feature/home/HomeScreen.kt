@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,10 +57,15 @@ import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 /**
  * Home real (6B): explore + novedades + charts + moods + historial reciente,
  * con pull to refresh, fallback offline, skeleton, empty y error states.
+ * 6E-1 conecta la navegación a las details y la reproducción de tracks.
  */
 @Composable
 fun HomeScreen(
     onGoToSearch: () -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -70,6 +76,10 @@ fun HomeScreen(
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onGoToSearch = onGoToSearch,
+        onAlbumClick = onAlbumClick,
+        onArtistClick = onArtistClick,
+        onPlaylistClick = onPlaylistClick,
+        onPlayTracks = onPlayTracks,
         modifier = modifier,
     )
 }
@@ -83,6 +93,10 @@ fun HomeScreenContent(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onGoToSearch: () -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val error = state.error
@@ -108,6 +122,10 @@ fun HomeScreenContent(
                 state = state,
                 onMoodSelected = onMoodSelected,
                 onRefresh = onRefresh,
+                onAlbumClick = onAlbumClick,
+                onArtistClick = onArtistClick,
+                onPlaylistClick = onPlaylistClick,
+                onPlayTracks = onPlayTracks,
             )
         }
     }
@@ -120,6 +138,10 @@ private fun HomeList(
     state: HomeUiState,
     onMoodSelected: (String?) -> Unit,
     onRefresh: () -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     val spacing = LocalMetMusicSpacing.current
     PullToRefreshBox(
@@ -164,7 +186,10 @@ private fun HomeList(
                         horizontalArrangement = Arrangement.spacedBy(spacing.itemGap),
                     ) {
                         items(state.newReleases, key = { it.albumId }) { album ->
-                            MetMusicAlbumCard(album = album, onClick = null)
+                            MetMusicAlbumCard(
+                                album = album,
+                                onClick = { onAlbumClick(album.albumId) },
+                            )
                         }
                     }
                 }
@@ -174,8 +199,14 @@ private fun HomeList(
                 item(key = "charts-header") {
                     MetMusicSectionHeader(title = "Top charts")
                 }
-                items(state.charts.take(5), key = { it.trackId }) { track ->
-                    TrackRow(track = track)
+                itemsIndexed(
+                    items = state.charts.take(5),
+                    key = { _, track -> track.trackId },
+                ) { index, track ->
+                    TrackRow(
+                        track = track,
+                        onClick = { onPlayTracks(state.charts, index) },
+                    )
                 }
                 item(key = "charts-gap") { SectionSpacer() }
             }
@@ -185,11 +216,14 @@ private fun HomeList(
                     MetMusicSectionHeader(title = section.title)
                 }
                 when (section.type) {
-                    ExploreSectionType.TRACKS -> items(
+                    ExploreSectionType.TRACKS -> itemsIndexed(
                         items = section.tracks.take(10),
-                        key = { "section-${section.id}-${it.trackId}" },
-                    ) { track ->
-                        TrackRow(track = track)
+                        key = { _, track -> "section-${section.id}-${track.trackId}" },
+                    ) { index, track ->
+                        TrackRow(
+                            track = track,
+                            onClick = { onPlayTracks(section.tracks, index) },
+                        )
                     }
                     ExploreSectionType.ALBUMS -> item(key = "row-${section.id}") {
                         LazyRow(
@@ -197,7 +231,10 @@ private fun HomeList(
                             horizontalArrangement = Arrangement.spacedBy(spacing.itemGap),
                         ) {
                             items(section.albums, key = { "${section.id}-${it.albumId}" }) { album ->
-                                MetMusicAlbumCard(album = album, onClick = null)
+                                MetMusicAlbumCard(
+                                    album = album,
+                                    onClick = { onAlbumClick(album.albumId) },
+                                )
                             }
                         }
                     }
@@ -207,7 +244,10 @@ private fun HomeList(
                             horizontalArrangement = Arrangement.spacedBy(spacing.itemGap),
                         ) {
                             items(section.artists, key = { "${section.id}-${it.artistId}" }) { artist ->
-                                MetMusicArtistCard(artist = artist, onClick = null)
+                                MetMusicArtistCard(
+                                    artist = artist,
+                                    onClick = { onArtistClick(artist.artistId) },
+                                )
                             }
                         }
                     }
@@ -220,7 +260,10 @@ private fun HomeList(
                                 items = section.playlists,
                                 key = { "${section.id}-${it.playlistId}" },
                             ) { playlist ->
-                                MetMusicPlaylistCard(playlist = playlist, onClick = null)
+                                MetMusicPlaylistCard(
+                                    playlist = playlist,
+                                    onClick = { onPlaylistClick(playlist.playlistId) },
+                                )
                             }
                         }
                     }
@@ -336,15 +379,15 @@ private fun HomeSkeleton() {
     }
 }
 
-/** Fila de track (charts y secciones de Explore): display-only en 6B. */
+/** Fila de track (charts y secciones de Explore): toca y reproduce su cola. */
 @Composable
-private fun TrackRow(track: Track) {
+private fun TrackRow(track: Track, onClick: () -> Unit) {
     MetMusicListItem(
         title = track.displayTitle,
         subtitle = trackSubtitle(track),
         trailing = formatDuration(track),
         leadingUrl = track.listThumbnailUrl.ifEmpty { track.thumbnailUrl }.ifEmpty { null },
-        onClick = null,
+        onClick = onClick,
     )
 }
 
@@ -377,6 +420,10 @@ private fun HomeScreenContentPreview() {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
+            onPlayTracks = { _, _ -> /* no-op en preview */ },
         )
     }
 }
@@ -391,6 +438,10 @@ private fun HomeScreenContentPreviewLoading() {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
+            onPlayTracks = { _, _ -> /* no-op en preview */ },
         )
     }
 }
@@ -405,6 +456,10 @@ private fun HomeScreenContentPreviewEmpty() {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
+            onPlayTracks = { _, _ -> /* no-op en preview */ },
         )
     }
 }
@@ -419,6 +474,10 @@ private fun HomeScreenContentPreviewError() {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
+            onPlayTracks = { _, _ -> /* no-op en preview */ },
         )
     }
 }
@@ -433,6 +492,10 @@ private fun HomeScreenContentPreviewOffline() {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onAlbumClick = { /* no-op en preview */ },
+            onArtistClick = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
+            onPlayTracks = { _, _ -> /* no-op en preview */ },
         )
     }
 }
