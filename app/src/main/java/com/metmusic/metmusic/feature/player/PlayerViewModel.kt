@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
  * Estado del reproductor para la UI.
  *
  * Mínimo en FASE 5B: [state] (incluye `hasTrack`), favorito del track activo
- * y alternar play/pausa y favorito. Las acciones restantes (seek, next,
- * previous, shuffle, repeat) se exponen en 6G con FullPlayer.
+ * y alternar play/pausa y favorito. 6A-2 agrega [next] y [previous] para el
+ * MiniPlayer; las acciones restantes (seek, shuffle, repeat) se exponen en
+ * 6G con FullPlayer.
  */
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -24,4 +25,8 @@ class PlayerViewModel @Inject constructor(
     fun togglePlayPause() = connection.togglePlayPause()
 
     fun toggleFavorite() = connection.toggleFavorite()
+
+    fun next() = connection.next()
+
+    fun previous() = connection.previous()
 }
