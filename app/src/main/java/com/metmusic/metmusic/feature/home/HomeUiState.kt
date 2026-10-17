@@ -40,7 +40,10 @@ data class HomeUiState(
 ) {
     /** `true` cuando no hay ningún contenido para mostrar. */
     val isEmpty: Boolean
-        get() = explore.isEmpty && newReleases.isEmpty && charts.isEmpty && recent.isEmpty
+        get() = explore.isEmpty &&
+            newReleases.isEmpty() &&
+            charts.isEmpty() &&
+            recent.isEmpty()
 
     companion object {
         /** Estado de muestra con datos, solo para previews (sin red). */

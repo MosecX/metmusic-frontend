@@ -109,7 +109,12 @@ class HomeViewModel @Inject constructor(
                 )
                 updated.copy(
                     error = if (updated.isEmpty) {
-                        firstFailure(explore, newReleases, charts, recent)?.toUserMessage()
+                        firstFailure(
+                            explore.exceptionOrNull(),
+                            newReleases.exceptionOrNull(),
+                            charts.exceptionOrNull(),
+                            recent.exceptionOrNull(),
+                        )?.toUserMessage()
                     } else {
                         null
                     },
@@ -129,8 +134,8 @@ class HomeViewModel @Inject constructor(
 }
 
 /** Primer error disponible para el error state (solo si no hay contenido). */
-private fun firstFailure(vararg results: Result<*>): Throwable? =
-    results.firstNotNullOfOrNull { it.exceptionOrNull() }
+private fun firstFailure(vararg errors: Throwable?): Throwable? =
+    errors.firstOrNull { it != null }
 
 /** Mensaje de usuario del error: el de [ApiException] o el fallback genérico. */
 private fun Throwable.toUserMessage(): String = (this as? ApiException)?.userMessage
