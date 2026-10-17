@@ -3,6 +3,7 @@ package com.metmusic.metmusic.di
 import com.metmusic.metmusic.core.network.ApiConstants
 import com.metmusic.metmusic.core.network.AuthInterceptor
 import com.metmusic.metmusic.core.network.MetMusicApi
+import com.metmusic.metmusic.core.network.RetryInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,6 +35,7 @@ object NetworkModule {
         .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .addInterceptor(AuthInterceptor { ApiConstants.DEFAULT_API_TOKEN })
+        .addInterceptor(RetryInterceptor())
         .build()
 
     @Provides
