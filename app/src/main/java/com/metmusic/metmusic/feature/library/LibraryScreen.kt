@@ -43,6 +43,51 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+package com.metmusic.metmusic.feature.library
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metmusic.metmusic.core.model.HistoryEntry
 import com.metmusic.metmusic.core.model.SavedMix
 import com.metmusic.metmusic.core.model.Track
@@ -69,9 +114,9 @@ import java.util.Locale
 
 /**
  * Biblioteca real (6C): cuatro tabs con gestión local completa sobre
- * playlists propias, favoritos, mixes guardados e historial. Las playlists
- * propias navegan a su detalle editable (6E-2); los detalles de Mix y la
- * reproducción llegan en 6F/6G.
+ * playlists propias, favoritos, mixes guardados e historial. 6F agrega el
+ * tab Mixes con navegación a la estación radial ([Routes.Mix]) desde el
+ * track semilla que generó el mix.
  */
 @Composable
 fun LibraryScreen(
@@ -109,6 +154,7 @@ fun LibraryScreen(
         onRemoveFavorite = viewModel::removeFavorite,
         onRemoveMix = viewModel::removeMix,
         onClearHistoryClick = { showClearHistoryDialog = true },
+        onMixClick = onMixClick,
         modifier = modifier,
     )
 
@@ -168,6 +214,7 @@ fun LibraryScreenContent(
     onRemoveFavorite: (String) -> Unit,
     onRemoveMix: (String) -> Unit,
     onClearHistoryClick: () -> Unit,
+    onMixClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalMetMusicSpacing.current
@@ -361,9 +408,9 @@ private fun FavoritesContent(
                             )
                         }
                     },
-                    onClick = null,
-                )
-            }
+        onClick = { onMixClick(savedMix.trackId) },
+    )
+}
         }
     }
 }
@@ -394,6 +441,7 @@ private fun MixesContent(
                 MixRow(
                     savedMix = savedMix,
                     onRemove = { onRemoveMix(savedMix.trackId) },
+                    onMixClick = onMixClick,
                 )
             }
         }
@@ -405,6 +453,7 @@ private fun MixesContent(
 private fun MixRow(
     savedMix: SavedMix,
     onRemove: () -> Unit,
+    onMixClick: (String) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     MetMusicListItem(
@@ -432,7 +481,7 @@ private fun MixRow(
                 )
             }
         },
-        onClick = null,
+        onClick = { onMixClick(savedMix.trackId) },
     )
 }
 
@@ -508,7 +557,7 @@ private val playDateFormatter: DateTimeFormatter =
 
 /** Wrapper de previews: estado de muestra + callbacks no-op. */
 @Composable
-private fun LibraryContentPreview(state: LibraryUiState) {
+private fun LibraryContentPreview(state: LibraryUiState, onMixClick: (String) -> Unit = {}) {
     MetMusicTheme {
         LibraryScreenContent(
             state = state,
@@ -524,6 +573,7 @@ private fun LibraryContentPreview(state: LibraryUiState) {
             onRemoveFavorite = { /* no-op en preview */ },
             onRemoveMix = { /* no-op en preview */ },
             onClearHistoryClick = { /* no-op en preview */ },
+            onMixClick = onMixClick,
         )
     }
 }
@@ -581,4 +631,29 @@ private fun LibraryScreenContentHistoryPreview() {
 @Composable
 private fun LibraryScreenContentEmptyPreview() {
     LibraryContentPreview(LibraryUiState(isLoading = false))
+}
+
+/** Preview de la pestaña Mixes con un mix guardado y navegación a la estación. */
+@Preview(
+    name = "LibraryScreenContent · Mixes con mix",
+    showBackground = true,
+    backgroundColor = 0xFF000000,
+    heightDp = 640,
+)
+@Composable
+private fun LibraryScreenContentMixesWithMixPreview() {
+    LibraryContentPreview(LibraryUiState(
+        selectedTab = LibraryTab.MIXES,
+        isLoading = false,
+        mixes = listOf(
+            SavedMix(
+                trackId = "mix-preview-1",
+                mix = RadioMix(
+                    id = "mix-preview-1",
+                    title = "Daft Punk Radio",
+                    subTitle = "Daft Punk",
+                ),
+            ),
+        ),
+    ))
 }

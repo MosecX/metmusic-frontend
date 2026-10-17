@@ -8,8 +8,8 @@ import kotlinx.serialization.Serializable
  * Los cuatro tabs ([Home], [Search], [Library], [Settings]) son destinos
  * top-level envueltos en [MetMusicShell]; [Player] es un modal full-screen
  * sin shell. 6E-1 suma las details de catálogo ([Album], [Artist],
- * [Playlist]) y 6E-2 el detalle editable de una playlist propia
- * ([UserPlaylist]); Mix llega en 6F.
+ * [Playlist]), 6E-2 el detalle editable de una playlist propia
+ * ([UserPlaylist]) y 6F la estación radial ([Mix]).
  */
 @Serializable
 sealed interface Routes {
@@ -49,4 +49,14 @@ sealed interface Routes {
     /** Detalle editable de una playlist propia (`/api/user/playlists/{playlistId}`). */
     @Serializable
     data class UserPlaylist(val playlistId: String) : Routes
+
+    /**
+     * Estación radial generada desde un track semilla
+     * (`GET /api/tracks/{trackId}/radio`).
+     *
+     * Ruta fuera del shell, con slide-up/down 300 ms, back propio y sin
+     * bottom bar ni MiniPlayer.
+     */
+    @Serializable
+    data class Mix(val trackId: String) : Routes
 }

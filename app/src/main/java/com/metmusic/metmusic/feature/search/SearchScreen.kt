@@ -53,6 +53,7 @@ fun SearchScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    onCreateMix: (String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -79,6 +80,7 @@ fun SearchScreenContent(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    onCreateMix: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -185,7 +187,7 @@ private fun ResultsContent(
                         items = state.results.tracks,
                         key = { _, track -> track.trackId },
                     ) { index, track ->
-                        TrackRow(track = track, onClick = { onTrackClick(index) })
+                        TrackRow(track = track, onClick = { onTrackClick(index) }, onCreateMix = {})
                     }
                 }
                 if (state.results.albums.isNotEmpty()) {
@@ -214,7 +216,7 @@ private fun ResultsContent(
                 items = state.results.tracks,
                 key = { _, track -> track.trackId },
             ) { index, track ->
-                TrackRow(track = track, onClick = { onTrackClick(index) })
+                TrackRow(track = track, onClick = { onTrackClick(index) }, onCreateMix = {})
             }
             SearchType.ALBUMS -> items(state.results.albums) { album ->
                 AlbumRow(album = album, onClick = { onAlbumClick(album.albumId) })
@@ -233,12 +235,17 @@ private fun ResultsContent(
 }
 
 @Composable
-private fun TrackRow(track: Track, onClick: () -> Unit) {
+private fun TrackRow(track: Track, onClick: () -> Unit, onCreateMix: () -> Unit = {}) {
     MetMusicListItem(
         title = track.displayTitle,
         subtitle = "${track.artist ?: ""} · ${track.album ?: ""}".trim('·', ' '),
         trailing = if (track.durationSeconds > 0) formatDuration(track.durationSeconds) else null,
         leadingUrl = track.listThumbnailUrl.ifEmpty { track.thumbnailUrl },
+        trailingContent = {
+            IconButton(onClick = onCreateMix) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Más opciones")
+            }
+        },
         onClick = onClick,
     )
 }
@@ -291,6 +298,7 @@ private fun SearchResultsPreview() {
                             artist = "Daft Punk",
                             album = "Discovery",
                             durationSeconds = 320,
+                            thumbnails = emptyList(),
                         ),
                         Track(
                             trackId = "2",

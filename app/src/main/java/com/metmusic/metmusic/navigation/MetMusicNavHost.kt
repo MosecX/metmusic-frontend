@@ -2,11 +2,10 @@ package com.metmusic.metmusic.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -18,6 +17,7 @@ import com.metmusic.metmusic.feature.album.AlbumDetailScreen
 import com.metmusic.metmusic.feature.artist.ArtistDetailScreen
 import com.metmusic.metmusic.feature.home.HomeScreen
 import com.metmusic.metmusic.feature.library.LibraryScreen
+import com.metmusic.metmusic.feature.mix.MixScreen
 import com.metmusic.metmusic.feature.player.PlayerViewModel
 import com.metmusic.metmusic.feature.player.ui.PlayerScreen
 import com.metmusic.metmusic.feature.playlist.PlaylistDetailScreen
@@ -30,10 +30,11 @@ import com.metmusic.metmusic.feature.userplaylist.UserPlaylistScreen
  *
  * Los cuatro tabs son destinos top-level envueltos en [MetMusicShell]
  * (bottom bar + MiniPlayer compartidos); [Routes.Player] es un modal
- * full-screen sin shell. Las details de catálogo (6E-1) y la playlist propia
- * (6E-2) también van fuera del shell, con slide-up/down propio. Cambiar de
- * tab conserva el back stack de cada uno (`saveState`/`restoreState`) para
- * cuando aparezcan rutas hijas (6E/6F).
+ * full-screen sin shell. Las details de catálogo (6E-1), la playlist propia
+ * (6E-2) y la estación radial (6F) también van fuera del shell, con
+ * slide-up/down propio. Cambiar de tab conserva el back stack de cada uno
+ * (`saveState`/`restoreState`) para cuando aparezcan rutas hijas (6E/6F).
+ *
  * El back predictivo lo resuelve Navigation Compose (el Manifest habilita
  * `enableOnBackInvokedCallback`), por eso no hay BackHandler.
  */
@@ -87,6 +88,10 @@ fun MetMusicNavHost(
                     onPlaylistClick = { playlistId ->
                         navController.navigate(Routes.Playlist(playlistId))
                     },
+                    onCreateMix = { trackId ->
+                        // FASE 6F: estación radial a partir de un track de búsqueda.
+                        navController.navigate(Routes.Mix(trackId))
+                    },
                 )
             }
         }
@@ -103,6 +108,10 @@ fun MetMusicNavHost(
                     onGoToSearch = { navController.navigateToTab(MetMusicTab.SEARCH) },
                     onPlaylistClick = { playlistId ->
                         navController.navigate(Routes.UserPlaylist(playlistId))
+                    },
+                    onMixClick = { trackId ->
+                        // FASE 6F: navega a la estación radial desde Library/Mixes.
+                        navController.navigate(Routes.Mix(trackId))
                     },
                 )
             }
@@ -249,6 +258,31 @@ fun MetMusicNavHost(
                 onPlayTracks = { tracks, index -> playerViewModel.playQueue(tracks, index) },
             )
         }
+        composable<Routes.Mix>(
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+        ) {
+            MixScreen(
+                onBack = { navController.popBackStack() },
+                onPlayTracks = { tracks, index -> playerViewModel.playQueue(tracks, index) },
+            )
+        }
     }
 }
 
@@ -258,7 +292,7 @@ private const val TAB_FADE_MS = 200
 /** Duración del slide del Player modal. */
 private const val PLAYER_SLIDE_MS = 300
 
-/** Duración del slide de las details de catálogo y de la playlist propia. */
+/** Duración del slide de las details de catálogo, de la playlist propia y la estación radial. */
 private const val DETAIL_SLIDE_MS = 300
 
 /**
@@ -277,7 +311,7 @@ private fun NavHostController.navigateToTab(tab: MetMusicTab) {
 }
 
 /** `true` cuando el tab indicado ya está sobre el tope del back stack. */
-private fun NavHostController.isCurrentTab(tab: MetMusicTab): Boolean = when (tab) {
+private fun NavHostController.isCurrentTab(tab: MetMusicTab) = when (tab) {
     MetMusicTab.HOME -> currentDestination?.hasRoute<Routes.Home>() == true
     MetMusicTab.SEARCH -> currentDestination?.hasRoute<Routes.Search>() == true
     MetMusicTab.LIBRARY -> currentDestination?.hasRoute<Routes.Library>() == true
