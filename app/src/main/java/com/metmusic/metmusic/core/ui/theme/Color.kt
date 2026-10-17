@@ -2,6 +2,7 @@ package com.metmusic.metmusic.core.ui.theme
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 
 /**
  * Paleta de MetMusic, portada 1:1 desde AppColors (Flutter). Dark mode
@@ -77,7 +78,7 @@ object MetMusicColors {
             lightness = (lightness * 0.25f).coerceIn(0f, 1f),
         )
         return Brush.verticalGradient(
-            listOf(Color.alphaBlend(dark.copy(alpha = 0.65f), background), background),
+            listOf(dark.copy(alpha = 0.65f).compositeOver(background), background),
         )
     }
 
