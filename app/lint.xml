@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Crash interno del detector NonNullableMutableLiveDataDetector (androidx.lifecycle
+         lint checks) contra la Kotlin Analysis API 2.1.20 del lint de AGP 8.7.3:
+         IncompatibleClassChangeError KaCallableMemberCall. El log de lint lo declara
+         "a bug in lint or one of the libraries it depends on". Solo este check; el resto activos. -->
+    <issue id="NullSafeMutableLiveData" severity="ignore" />
+</lint>
