@@ -67,7 +67,7 @@ fun MetMusicTextField(
                     IconButton(onClick = onTrailingIconClick) {
                         Icon(
                             imageVector = icon,
-                            contentDescription = null,
+                            contentDescription = "Limpiar",
                             tint = MetMusicColors.textSecondary,
                         )
                     }
