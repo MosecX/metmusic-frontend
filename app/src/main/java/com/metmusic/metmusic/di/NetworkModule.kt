@@ -1,5 +1,6 @@
 package com.metmusic.metmusic.di
 
+import com.metmusic.metmusic.core.data.TokenStorage
 import com.metmusic.metmusic.core.network.ApiConstants
 import com.metmusic.metmusic.core.network.AuthInterceptor
 import com.metmusic.metmusic.core.network.MetMusicApi
@@ -30,11 +31,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttp(): OkHttpClient = OkHttpClient.Builder()
+    fun provideOkHttp(tokenStorage: TokenStorage): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(ApiConstants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(ApiConstants.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .addInterceptor(AuthInterceptor { ApiConstants.DEFAULT_API_TOKEN })
+        .addInterceptor(AuthInterceptor { tokenStorage.getToken() })
         .addInterceptor(RetryInterceptor())
         .build()
 
