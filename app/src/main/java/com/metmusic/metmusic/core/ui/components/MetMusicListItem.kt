@@ -38,6 +38,7 @@ fun MetMusicListItem(
     trailing: String? = null,
     leadingUrl: String? = null,
     leadingIcon: ImageVector? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -86,13 +87,16 @@ fun MetMusicListItem(
                 )
             }
         }
-        if (trailing != null) {
+        if (trailing != null || trailingContent != null) {
             Spacer(modifier = Modifier.width(spacing.md))
+        }
+        if (trailing != null) {
             BasicText(
                 text = trailing,
                 style = MetMusicTextStyles.rowTrailing,
             )
         }
+        trailingContent?.invoke()
     }
 }
 
