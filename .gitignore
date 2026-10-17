@@ -1,72 +1,22 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Gradle
+.gradle/
+build/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
+# Configuración local (SDK de Android)
+local.properties
+
+# Kotlin
+.kotlin/
+
+# IDE
 .idea/
+*.iml
+captures/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/.gradle
-/android/local.properties
-
-# Firmas — el repo es privado y la app es de prueba, así que la clave SÍ se
-# versiona a propósito: si cada build de Actions firmara con una clave de
-# debug efímera, Android rechazaría la actualización y habría que
-# desinstalar la app para instalarla. Con la misma clave el APK se instala
-# encima del anterior.
-.env
-.env.*
-android/app/google-services.json
-android/app/*.json
-
-# Hive / datos locales de la app
-*.hive
-*.lock
-!pubspec.lock
-
-# Widget Preview related
-.widget_preview/
-
-# Misc de CI local
-/artifacts/
+# Artefactos
 *.apk
 *.aab
+
+# La firma se versiona a propósito (repo privado): keystore/metmusic-release.jks
+# y key.properties van en el repo para que cada build use la misma clave y la
+# actualización se instale encima sin desinstalar.

@@ -1,0 +1,106 @@
+name: Build Android Native APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test, lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+
+      - name: Run lint
+        run: ./gradlew :app:lintDebug --console=plain
+
+      - name: Build release APKs (split per ABI)
+        run: ./gradlew :app:assembleRelease --console=plain -Pmetmusic.versionCode=${{ github.run_number }}
+
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          for apk in app/build/outputs/apk/release/*.apk; do
+            echo "== $apk"
+            "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|DN:"
+          done
+
+      - name: Upload APK artifacts
+        id: apk_artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-apk-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Publish APK to CDN repo
+        if: github.event_name == 'push' && steps.apk_artifact.outcome == 'failure'
+        env:
+          CDN_TOKEN: ${{ secrets.CDN_TOKEN }}
+        run: |
+          VERSION=$(grep '^metmusic\.versionName=' gradle.properties | sed 's/^metmusic\.versionName=//')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          git clone --depth 1 "https://x-access-token:${CDN_TOKEN}@github.com/MosecX/cdn.tinvoxdevelopment.git" cdn-repo
+          cd cdn-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p "metmusic-native/${VERSION}-${SHORT_SHA}" metmusic-native/latest
+          for apk in ../app/build/outputs/apk/release/*.apk; do
+            name=$(basename "$apk")
+            abi_name="${name#app-}"
+            abi_name="${abi_name%-release.apk}.apk"
+            cp "$apk" "metmusic-native/${VERSION}-${SHORT_SHA}/MetMusic-native-${abi_name}"
+            cp "$apk" "metmusic-native/latest/MetMusic-native-${abi_name}"
+          done
+          git add metmusic-native
+          git diff --cached --quiet || git commit -m "MetMusic native APK ${VERSION} (${SHORT_SHA}) [skip ci]"
+          git push
+
+      - name: Report artifact status
+        if: always()
+        run: |
+          OUTCOME="${{ steps.apk_artifact.outcome }}"
+          echo "## Native APK Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact upload outcome: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "- Published to: GitHub Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "- Published to: CDN (Artifacts failed)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Not published (build ended before upload: $OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: native-apk-release/*.apk

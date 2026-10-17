@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MetMusic es siempre dark: el launch theme usa fondo negro profundo
+         incluso cuando el dispositivo está en modo claro, para evitar
+         un flash blanco al arrancar. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/metmusic_background</item>
+    </style>
+</resources>
