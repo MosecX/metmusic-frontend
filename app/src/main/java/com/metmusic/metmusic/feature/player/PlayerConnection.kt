@@ -263,9 +263,9 @@ class PlayerConnection @Inject constructor(
                     .setArtist(track.artist)
                     .setAlbumTitle(track.album)
                     .setArtworkUri(track.thumbnailUrl.takeIf { it.isNotEmpty() }?.let(Uri::parse))
+                    .setExtras(extras)
                     .build(),
             )
-            .setExtras(extras)
             .build()
     }
 
@@ -314,7 +314,7 @@ class PlayerConnection @Inject constructor(
     }
 
     private fun mediaItemToTrack(item: MediaItem): Track? {
-        val json = item.extras?.getString(EXTRAS_TRACK_JSON) ?: return null
+        val json = item.mediaMetadata.extras?.getString(EXTRAS_TRACK_JSON) ?: return null
         return try {
             JsonParse.parse(json)?.let { Track.fromJson(it) }
         } catch (e: Exception) {

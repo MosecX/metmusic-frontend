@@ -87,7 +87,7 @@ class HistoryReporter @Inject constructor(
     private fun trackFor(item: MediaItem?): Track? {
         if (item == null) return null
         queueManager.queue.value.firstOrNull { it.trackId == item.mediaId }?.let { return it }
-        val json = item.extras?.getString(EXTRAS_TRACK_JSON) ?: return null
+        val json = item.mediaMetadata.extras?.getString(EXTRAS_TRACK_JSON) ?: return null
         return try {
             JsonParse.parse(json)?.let { Track.fromJson(it) }
         } catch (e: Exception) {
