@@ -2,4 +2,7 @@
 <resources>
     <string name="app_name">MetMusic</string>
     <string name="boot_initializing">Iniciando…</string>
+    <string name="notification_channel_description">Controles de reproducción de MetMusic</string>
+    <string name="notification_channel_name">MetMusic</string>
+    <string name="notification_permission_rationale">Permití las notificaciones para controlar la reproducción desde la pantalla de bloqueo y la barra de estado.</string>
 </resources>
