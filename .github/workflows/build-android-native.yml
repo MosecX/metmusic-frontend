@@ -10,6 +10,8 @@ jobs:
   build:
     name: Test, lint and build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -40,6 +42,31 @@ jobs:
             echo "== $apk"
             "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|DN:"
           done
+
+      - name: Create build release
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="build-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          BODY_FILE=$(mktemp)
+          git log -1 --pretty=%B > "$BODY_FILE"
+          {
+            echo ""
+            echo "---"
+            echo "Commit: ${SHORT_SHA}"
+            echo "Run: [#${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "ABIs: arm64-v8a, armeabi-v7a, x86_64"
+          } >> "$BODY_FILE"
+          gh release create "$TAG" \
+            --title "Build ${GITHUB_RUN_NUMBER} — ${SHORT_SHA}" \
+            --notes-file "$BODY_FILE" \
+            --prerelease \
+            --latest=false \
+            app/build/outputs/apk/release/*.apk
+          echo "Release created: $TAG"
 
       - name: Upload APK artifacts
         id: apk_artifact
