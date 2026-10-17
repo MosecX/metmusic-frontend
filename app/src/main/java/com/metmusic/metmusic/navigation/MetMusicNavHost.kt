@@ -23,16 +23,17 @@ import com.metmusic.metmusic.feature.player.ui.PlayerScreen
 import com.metmusic.metmusic.feature.playlist.PlaylistDetailScreen
 import com.metmusic.metmusic.feature.search.SearchScreen
 import com.metmusic.metmusic.feature.settings.SettingsScreen
+import com.metmusic.metmusic.feature.userplaylist.UserPlaylistScreen
 
 /**
  * Grafo de navegación de MetMusic.
  *
  * Los cuatro tabs son destinos top-level envueltos en [MetMusicShell]
  * (bottom bar + MiniPlayer compartidos); [Routes.Player] es un modal
- * full-screen sin shell. Las details de catálogo (6E-1) también van fuera
- * del shell, con slide-up/down propio. Cambiar de tab conserva el back
- * stack de cada uno (`saveState`/`restoreState`) para cuando aparezcan
- * rutas hijas (6E/6F).
+ * full-screen sin shell. Las details de catálogo (6E-1) y la playlist propia
+ * (6E-2) también van fuera del shell, con slide-up/down propio. Cambiar de
+ * tab conserva el back stack de cada uno (`saveState`/`restoreState`) para
+ * cuando aparezcan rutas hijas (6E/6F).
  * El back predictivo lo resuelve Navigation Compose (el Manifest habilita
  * `enableOnBackInvokedCallback`), por eso no hay BackHandler.
  */
@@ -100,6 +101,9 @@ fun MetMusicNavHost(
             ) {
                 LibraryScreen(
                     onGoToSearch = { navController.navigateToTab(MetMusicTab.SEARCH) },
+                    onPlaylistClick = { playlistId ->
+                        navController.navigate(Routes.UserPlaylist(playlistId))
+                    },
                 )
             }
         }
@@ -220,6 +224,31 @@ fun MetMusicNavHost(
                 onPlayTracks = { tracks, index -> playerViewModel.playQueue(tracks, index) },
             )
         }
+        composable<Routes.UserPlaylist>(
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                    animationSpec = tween(DETAIL_SLIDE_MS),
+                )
+            },
+        ) {
+            UserPlaylistScreen(
+                onBack = { navController.popBackStack() },
+                onPlayTracks = { tracks, index -> playerViewModel.playQueue(tracks, index) },
+            )
+        }
     }
 }
 
@@ -229,7 +258,7 @@ private const val TAB_FADE_MS = 200
 /** Duración del slide del Player modal. */
 private const val PLAYER_SLIDE_MS = 300
 
-/** Duración del slide de las details de catálogo (Album/Artist/Playlist). */
+/** Duración del slide de las details de catálogo y de la playlist propia. */
 private const val DETAIL_SLIDE_MS = 300
 
 /**

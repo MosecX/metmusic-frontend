@@ -69,13 +69,14 @@ import java.util.Locale
 
 /**
  * Biblioteca real (6C): cuatro tabs con gestión local completa sobre
- * playlists propias, favoritos, mixes guardados e historial. Los detalles
- * (PlaylistDetail, MixScreen) y la reproducción llegan en 6E/6F/6G, así que
- * las filas no navegan todavía.
+ * playlists propias, favoritos, mixes guardados e historial. Las playlists
+ * propias navegan a su detalle editable (6E-2); los detalles de Mix y la
+ * reproducción llegan en 6F/6G.
  */
 @Composable
 fun LibraryScreen(
     onGoToSearch: () -> Unit,
+    onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -101,6 +102,7 @@ fun LibraryScreen(
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onGoToSearch = onGoToSearch,
+        onPlaylistClick = onPlaylistClick,
         onCreateClick = { showCreateDialog = true },
         onRenameClick = { renameTarget = it },
         onDeleteClick = { deleteTarget = it },
@@ -159,6 +161,7 @@ fun LibraryScreenContent(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onGoToSearch: () -> Unit,
+    onPlaylistClick: (String) -> Unit,
     onCreateClick: () -> Unit,
     onRenameClick: (UserPlaylist) -> Unit,
     onDeleteClick: (UserPlaylist) -> Unit,
@@ -200,6 +203,7 @@ fun LibraryScreenContent(
                     else -> when (state.selectedTab) {
                         LibraryTab.PLAYLISTS -> PlaylistsContent(
                             playlists = state.playlists,
+                            onPlaylistClick = onPlaylistClick,
                             onRenameClick = onRenameClick,
                             onDeleteClick = onDeleteClick,
                             onGoToSearch = onGoToSearch,
@@ -272,6 +276,7 @@ private fun LibraryTabChips(
 @Composable
 private fun PlaylistsContent(
     playlists: List<UserPlaylist>,
+    onPlaylistClick: (String) -> Unit,
     onRenameClick: (UserPlaylist) -> Unit,
     onDeleteClick: (UserPlaylist) -> Unit,
     onGoToSearch: () -> Unit,
@@ -313,7 +318,7 @@ private fun PlaylistsContent(
                             )
                         }
                     },
-                    onClick = null,
+                    onClick = { onPlaylistClick(playlist.playlistId) },
                 )
             }
         }
@@ -512,6 +517,7 @@ private fun LibraryContentPreview(state: LibraryUiState) {
             onRefresh = { /* no-op en preview */ },
             onRetry = { /* no-op en preview */ },
             onGoToSearch = { /* no-op en preview */ },
+            onPlaylistClick = { /* no-op en preview */ },
             onCreateClick = { /* no-op en preview */ },
             onRenameClick = { /* no-op en preview */ },
             onDeleteClick = { /* no-op en preview */ },
