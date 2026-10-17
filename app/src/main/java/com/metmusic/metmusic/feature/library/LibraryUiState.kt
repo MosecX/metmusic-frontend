@@ -41,7 +41,7 @@ data class LibraryUiState(
             isLoading = false,
             playlists = previewPlaylists,
             favorites = previewTracks,
-            mixes = previewMixes,
+            mixes = previewMixes(),
             history = previewHistory(),
         )
     }
