@@ -144,7 +144,7 @@ class UserRepository @Inject constructor(
             api.checkFavorites(ApiEndpoints.USER_FAVORITES_CHECK, trackIds.joinToString(","))
         }.string()
         val json = parseObjectBody(body)
-        val value = json["favorites"] ?: json["ids"] ?: json["track_ids"]
+        val value = json["favorites"] ?: json["ids"] ?: json["track_ids"] ?: json["items"]
         if (value is List<*>) return JsonParse.strings(value).toSet()
         if (json.values.all { it is Boolean }) {
             return json.filterValues { it == true }.keys

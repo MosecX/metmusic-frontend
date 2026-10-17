@@ -64,7 +64,7 @@ class HealthRepositoryTest {
 
     @Test
     fun `clears the server cache with a delete`() = runTest {
-        enqueue(code = 204, body = "")
+        enqueue(body = """{"deleted": 1, "pattern": "*"}""")
 
         repository.clearServerCache()
 
