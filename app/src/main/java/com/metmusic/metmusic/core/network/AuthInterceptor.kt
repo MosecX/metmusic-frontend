@@ -4,7 +4,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 
 /**
- * Agrega `Authorization: Bearer <token>` a todo `/api/*` menos `/api/health`.
+ * Agrega `Authorization: Bearer <token>` a los endpoints `/api` (menos `/api/health`).
  *
  * Misma regla que la app Flutter: si el token está vacío, el request sale sin
  * header (el backend responde 401 y la UI lo traduce).
