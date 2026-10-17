@@ -1,62 +1,45 @@
 package com.metmusic.metmusic.feature.search
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.metmusic.metmusic.core.model.Album
 import com.metmusic.metmusic.core.model.Artist
 import com.metmusic.metmusic.core.model.Playlist
 import com.metmusic.metmusic.core.model.SearchResults
 import com.metmusic.metmusic.core.model.SearchType
 import com.metmusic.metmusic.core.model.Track
+import com.metmusic.metmusic.core.ui.components.MetMusicChip
+import com.metmusic.metmusic.core.ui.components.MetMusicEmptyState
+import com.metmusic.metmusic.core.ui.components.MetMusicErrorState
+import com.metmusic.metmusic.core.ui.components.MetMusicListItem
+import com.metmusic.metmusic.core.ui.components.MetMusicLoading
+import com.metmusic.metmusic.core.ui.components.MetMusicSectionHeader
+import com.metmusic.metmusic.core.ui.components.MetMusicTextField
+import com.metmusic.metmusic.core.ui.design.LocalMetMusicSpacing
 import com.metmusic.metmusic.core.ui.design.MetMusicColors
-import com.metmusic.metmusic.core.ui.design.MetMusicTextStyles
 import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 
 /**
@@ -67,66 +50,73 @@ import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    SearchScreenContent(
+        state = state,
+        onQueryChange = viewModel::onQueryChange,
+        onTypeChange = viewModel::onTypeChange,
+        onRetry = viewModel::retry,
+        onTrackClick = viewModel::playTrackAt,
+    )
+}
 
+/** Composición pura de la búsqueda (sin ViewModel), lista para previews. */
+@Composable
+fun SearchScreenContent(
+    state: SearchState,
+    onQueryChange: (String) -> Unit,
+    onTypeChange: (SearchType) -> Unit,
+    onRetry: () -> Unit,
+    onTrackClick: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MetMusicColors.background),
     ) {
-        SearchBar(query = state.query, onQueryChange = viewModel::onQueryChange)
-        SearchTypeRow(selected = state.type, onSelect = viewModel::onTypeChange)
+        SearchBar(query = state.query, onQueryChange = onQueryChange)
+        SearchTypeRow(selected = state.type, onSelect = onTypeChange)
         when {
-            state.showEmptyPrompt -> EmptyPrompt("Buscá artistas, álbumes, canciones o playlists.")
-            state.isLoading -> LoadingBlock()
+            state.showEmptyPrompt -> MetMusicEmptyState(
+                title = "Buscá en MetMusic",
+                subtitle = "Artistas, álbumes, canciones o playlists.",
+                icon = Icons.Outlined.Search,
+            )
+            state.isLoading -> MetMusicLoading(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = LocalMetMusicSpacing.current.xl),
+            )
             state.error != null -> state.error?.let { message ->
-                ErrorBlock(message = message, onRetry = viewModel::retry)
+                MetMusicErrorState(message = message, onRetry = onRetry)
             }
-            state.showNoResults -> EmptyPrompt("Sin resultados para \"${state.query.trim()}\".")
-            else -> ResultsContent(state, onTrackClick = viewModel::playTrackAt)
+            state.showNoResults -> MetMusicEmptyState(
+                title = "Sin resultados",
+                subtitle = "No encontramos nada para \"${state.query.trim()}\".",
+                icon = Icons.Outlined.Search,
+            )
+            else -> ResultsContent(state = state, onTrackClick = onTrackClick)
         }
     }
 }
 
-/** Campo de búsqueda con ícono de lupa y botón de limpiar. */
+/** Campo de búsqueda con lupa, texto guía y botón de limpiar. */
 @Composable
 private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
-    OutlinedTextField(
+    MetMusicTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text("Buscar en MetMusic", color = MetMusicColors.textTertiary) },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Filled.Search,
-                contentDescription = null,
-                tint = MetMusicColors.textSecondary,
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Limpiar búsqueda",
-                        tint = MetMusicColors.textSecondary,
-                    )
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(12.dp),
+            .padding(
+                horizontal = LocalMetMusicSpacing.current.pagePadding,
+                vertical = LocalMetMusicSpacing.current.sm,
+            ),
+        placeholder = "Buscar en MetMusic",
+        leadingIcon = Icons.Filled.Search,
+        trailingIcon = if (query.isNotEmpty()) Icons.Filled.Close else null,
+        onTrailingIconClick = { onQueryChange("") },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MetMusicColors.controlFill,
-            unfocusedContainerColor = MetMusicColors.controlFill,
-            focusedBorderColor = MetMusicColors.glassBorder,
-            unfocusedBorderColor = MetMusicColors.glassBorder,
-            focusedTextColor = MetMusicColors.textPrimary,
-            unfocusedTextColor = MetMusicColors.textPrimary,
-            cursorColor = MetMusicColors.accent,
-        ),
     )
 }
 
@@ -137,21 +127,17 @@ private fun SearchTypeRow(selected: SearchType, onSelect: (SearchType) -> Unit) 
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(
+                horizontal = LocalMetMusicSpacing.current.pagePadding,
+                vertical = LocalMetMusicSpacing.current.xs,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(LocalMetMusicSpacing.current.sm),
     ) {
         SearchType.entries.forEach { type ->
-            FilterChip(
+            MetMusicChip(
+                label = type.label,
                 selected = type == selected,
                 onClick = { onSelect(type) },
-                label = { Text(type.label) },
-                shape = RoundedCornerShape(20.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MetMusicColors.controlFill,
-                    labelColor = MetMusicColors.textPrimary,
-                    selectedContainerColor = MetMusicColors.accent,
-                    selectedLabelColor = Color.Black,
-                ),
             )
         }
     }
@@ -162,12 +148,15 @@ private fun SearchTypeRow(selected: SearchType, onSelect: (SearchType) -> Unit) 
 private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(
+            top = LocalMetMusicSpacing.current.sm,
+            bottom = LocalMetMusicSpacing.current.xl,
+        ),
     ) {
         when (state.type) {
             SearchType.ALL -> {
                 if (state.results.tracks.isNotEmpty()) {
-                    item { SectionHeader("Canciones") }
+                    item { MetMusicSectionHeader(title = "Canciones") }
                     itemsIndexed(
                         items = state.results.tracks,
                         key = { _, track -> track.trackId },
@@ -176,15 +165,15 @@ private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
                     }
                 }
                 if (state.results.albums.isNotEmpty()) {
-                    item { SectionHeader("Álbumes") }
+                    item { MetMusicSectionHeader(title = "Álbumes") }
                     items(state.results.albums) { album -> AlbumRow(album) }
                 }
                 if (state.results.artists.isNotEmpty()) {
-                    item { SectionHeader("Artistas") }
+                    item { MetMusicSectionHeader(title = "Artistas") }
                     items(state.results.artists) { artist -> ArtistRow(artist) }
                 }
                 if (state.results.playlists.isNotEmpty()) {
-                    item { SectionHeader("Playlists") }
+                    item { MetMusicSectionHeader(title = "Playlists") }
                     items(state.results.playlists) { playlist -> PlaylistRow(playlist) }
                 }
             }
@@ -202,183 +191,40 @@ private fun ResultsContent(state: SearchState, onTrackClick: (Int) -> Unit) {
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MetMusicTextStyles.sectionTitle,
-        color = MetMusicColors.textPrimary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-    )
-}
-
-@Composable
 private fun TrackRow(track: Track, onClick: () -> Unit) {
-    val subtitle = listOfNotNull(track.artist, track.album).joinToString(" · ")
-    val trailing = if (track.durationSeconds > 0) formatDuration(track.durationSeconds) else null
-    SearchRow(
-        imageUrl = track.listThumbnailUrl.ifEmpty { track.thumbnailUrl },
-        title = track.title,
-        subtitle = subtitle,
-        trailing = trailing,
+    MetMusicListItem(
+        title = track.displayTitle,
+        subtitle = "${track.artist ?: ""} · ${track.album ?: ""}".trim('·', ' '),
+        trailing = if (track.durationSeconds > 0) formatDuration(track.durationSeconds) else null,
+        leadingUrl = track.listThumbnailUrl.ifEmpty { track.thumbnailUrl },
         onClick = onClick,
     )
 }
 
 @Composable
 private fun AlbumRow(album: Album) {
-    val subtitle = listOfNotNull(album.artist, album.year.ifEmpty { null }).joinToString(" · ")
-    SearchRow(
-        imageUrl = album.thumbnailUrl,
+    MetMusicListItem(
         title = album.title,
-        subtitle = subtitle,
+        subtitle = "${album.artist ?: ""} · ${album.year}".trim('·', ' '),
+        leadingUrl = album.thumbnailUrl,
     )
 }
 
 @Composable
 private fun ArtistRow(artist: Artist) {
-    SearchRow(
-        imageUrl = artist.imageUrl,
+    MetMusicListItem(
         title = artist.name,
-        subtitle = "",
+        leadingUrl = artist.imageUrl,
     )
 }
 
 @Composable
 private fun PlaylistRow(playlist: Playlist) {
-    SearchRow(
-        imageUrl = playlist.thumbnailUrl,
+    MetMusicListItem(
         title = playlist.title,
         subtitle = playlist.creator ?: "${playlist.trackCount} canciones",
+        leadingUrl = playlist.thumbnailUrl,
     )
-}
-
-/**
- * Fila base: miniatura 56 dp + título/subtítulo + trailing opcional.
- * [onClick] agrega el clickable a la fila completa (solo tracks).
- */
-@Composable
-private fun SearchRow(
-    imageUrl: String,
-    title: String,
-    subtitle: String,
-    trailing: String? = null,
-    onClick: (() -> Unit)? = null,
-) {
-    val rowModifier = if (onClick != null) {
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    } else {
-        Modifier.fillMaxWidth()
-    }
-    Row(
-        modifier = rowModifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RowThumbnail(url = imageUrl)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MetMusicTextStyles.rowTitle,
-                color = MetMusicColors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    style = MetMusicTextStyles.rowSubtitle,
-                    color = MetMusicColors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (trailing != null) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = trailing,
-                style = MetMusicTextStyles.rowTrailing,
-                color = MetMusicColors.textTertiary,
-            )
-        }
-    }
-}
-
-/** Miniatura de fila; cae a un bloque `controlFill` cuando no hay URL. */
-@Composable
-private fun RowThumbnail(url: String) {
-    if (url.isNotEmpty()) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(12.dp)),
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MetMusicColors.controlFill),
-        )
-    }
-}
-
-@Composable
-private fun LoadingBlock() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator(color = MetMusicColors.accent)
-    }
-}
-
-@Composable
-private fun EmptyPrompt(text: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MetMusicTextStyles.subtitle,
-            color = MetMusicColors.textSecondary,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun ErrorBlock(message: String, onRetry: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = message,
-                style = MetMusicTextStyles.subtitle,
-                color = MetMusicColors.textSecondary,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            TextButton(
-                onClick = onRetry,
-                colors = ButtonDefaults.textButtonColors(contentColor = MetMusicColors.accent),
-            ) {
-                Text("Reintentar")
-            }
-        }
-    }
 }
 
 /** Formatea segundos como mm:ss. */
@@ -411,6 +257,48 @@ private fun SearchResultsPreview() {
                     ),
                 ),
             ),
+            onTrackClick = {},
+        )
+    }
+}
+
+@Preview(name = "SearchEmpty", showBackground = true, backgroundColor = 0xFF000000, widthDp = 360, heightDp = 640)
+@Composable
+private fun SearchScreenEmptyPreview() {
+    MetMusicTheme {
+        SearchScreenContent(
+            state = SearchState(),
+            onQueryChange = {},
+            onTypeChange = {},
+            onRetry = {},
+            onTrackClick = {},
+        )
+    }
+}
+
+@Preview(name = "SearchNoResults", showBackground = true, backgroundColor = 0xFF000000, widthDp = 360, heightDp = 640)
+@Composable
+private fun SearchScreenNoResultsPreview() {
+    MetMusicTheme {
+        SearchScreenContent(
+            state = SearchState(query = "zzzz"),
+            onQueryChange = {},
+            onTypeChange = {},
+            onRetry = {},
+            onTrackClick = {},
+        )
+    }
+}
+
+@Preview(name = "SearchError", showBackground = true, backgroundColor = 0xFF000000, widthDp = 360, heightDp = 640)
+@Composable
+private fun SearchScreenErrorPreview() {
+    MetMusicTheme {
+        SearchScreenContent(
+            state = SearchState(query = "daft punk", error = "No se pudo conectar con el servidor."),
+            onQueryChange = {},
+            onTypeChange = {},
+            onRetry = {},
             onTrackClick = {},
         )
     }
