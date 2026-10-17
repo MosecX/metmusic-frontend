@@ -4,8 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.metmusic.metmusic.core.ui.BootLoading
 import com.metmusic.metmusic.core.ui.theme.MetMusicTheme
+import com.metmusic.metmusic.navigation.MetMusicNavHost
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MetMusicTheme {
-                BootLoading()
+                MetMusicNavHost()
             }
         }
     }
