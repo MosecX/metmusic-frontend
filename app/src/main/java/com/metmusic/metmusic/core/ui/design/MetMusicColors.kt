@@ -1,4 +1,4 @@
-package com.metmusic.metmusic.core.ui.theme
+package com.metmusic.metmusic.core.ui.design
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color

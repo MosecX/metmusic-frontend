@@ -1,28 +1,10 @@
-package com.metmusic.metmusic.core.ui.theme
+package com.metmusic.metmusic.core.ui.design
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-
-/**
- * Constantes glassmorphism, portadas desde GlassStyles (Flutter): Glass 1
- * (mini player) y Glass 2 (resto de la UI) comparten radio y blur.
- */
-object MetMusicGlass {
-    /** Radio por defecto de todas las capas de vidrio. */
-    val cardRadius = 20.dp
-
-    /** Radio del mini player / Glass 1. */
-    val playerRadius = 20.dp
-
-    /** Radio circular para miniaturas (thumbnails). */
-    val thumbnailRadius = 12.dp
-
-    /** Sigma del blur de fondo (boceto: 20–28). */
-    val blurSigma = 20.dp
-}
 
 /** Esquema oscuro de MetMusic: siempre dark, sin modo claro. */
 private val MetMusicDarkColorScheme = darkColorScheme(
@@ -50,14 +32,29 @@ private val MetMusicDarkColorScheme = darkColorScheme(
 )
 
 /**
- * Tema raíz de MetMusic: esquema oscuro, tipografías Inter del diseño y
- * colores portados de Flutter.
+ * Tema raíz de MetMusic: colores y tipografía por MaterialTheme (canon) y
+ * tokens re-skinnables (spacing, radius, motion, glass) por CompositionLocals.
+ *
+ * Cambiar el look = pasar overrides, ej. `MetMusicTheme(radius = custom)`.
  */
 @Composable
-fun MetMusicTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = MetMusicDarkColorScheme,
-        typography = MetMusicTypography,
-        content = content,
-    )
+fun MetMusicTheme(
+    spacing: MetMusicSpacing = MetMusicSpacing(),
+    radius: MetMusicRadius = MetMusicRadius(),
+    motion: MetMusicMotion = MetMusicMotion(),
+    glass: MetMusicGlass = MetMusicGlass(),
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(
+        LocalMetMusicSpacing provides spacing,
+        LocalMetMusicRadius provides radius,
+        LocalMetMusicMotion provides motion,
+        LocalMetMusicGlass provides glass,
+    ) {
+        MaterialTheme(
+            colorScheme = MetMusicDarkColorScheme,
+            typography = MetMusicTypography,
+            content = content,
+        )
+    }
 }

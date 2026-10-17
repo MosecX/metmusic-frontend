@@ -1,4 +1,4 @@
-package com.metmusic.metmusic.core.ui.theme
+package com.metmusic.metmusic.core.ui.design
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

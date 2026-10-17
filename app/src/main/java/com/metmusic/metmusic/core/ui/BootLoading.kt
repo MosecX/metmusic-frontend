@@ -16,9 +16,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.metmusic.metmusic.R
-import com.metmusic.metmusic.core.ui.theme.MetMusicColors
-import com.metmusic.metmusic.core.ui.theme.MetMusicTextStyles
-import com.metmusic.metmusic.core.ui.theme.MetMusicTheme
+import com.metmusic.metmusic.core.ui.design.MetMusicColors
+import com.metmusic.metmusic.core.ui.design.MetMusicTextStyles
+import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 
 /**
  * Pantalla de arranque: spinner 28 dp (acento #BF5AF2) + "MetMusic" + 

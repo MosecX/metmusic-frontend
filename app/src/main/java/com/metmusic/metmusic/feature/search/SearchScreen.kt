@@ -55,9 +55,9 @@ import com.metmusic.metmusic.core.model.Playlist
 import com.metmusic.metmusic.core.model.SearchResults
 import com.metmusic.metmusic.core.model.SearchType
 import com.metmusic.metmusic.core.model.Track
-import com.metmusic.metmusic.core.ui.theme.MetMusicColors
-import com.metmusic.metmusic.core.ui.theme.MetMusicTextStyles
-import com.metmusic.metmusic.core.ui.theme.MetMusicTheme
+import com.metmusic.metmusic.core.ui.design.MetMusicColors
+import com.metmusic.metmusic.core.ui.design.MetMusicTextStyles
+import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 
 /**
  * Pantalla de búsqueda: campo con debounce (en el ViewModel), pestañas por

@@ -15,7 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.metmusic.metmusic.core.ui.theme.MetMusicTheme
+import com.metmusic.metmusic.core.ui.design.MetMusicTheme
 import com.metmusic.metmusic.core.ui.util.NotificationPermission
 import com.metmusic.metmusic.feature.player.PlayerViewModel
 import com.metmusic.metmusic.navigation.MetMusicNavHost
