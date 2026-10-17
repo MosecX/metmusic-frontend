@@ -48,7 +48,7 @@ class UserPlaylistsRepository @Inject constructor(
     }
 
     suspend fun rename(id: String, name: String): UserPlaylist {
-        val updated = userRepository.updatePlaylist(id, name = name)
+        val updated = userRepository.updatePlaylist(id, name = name, description = null, coverUrl = null)
         dao.insert(updated.toEntity())
         return updated
     }
