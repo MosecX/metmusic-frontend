@@ -38,12 +38,15 @@ class HealthStatusTest {
     }
 
     @Test
-    fun `derives ok from status and defaults to true`() {
+    fun `derives ok from the status and healthy flags`() {
         val fromStatus = HealthStatus.fromJson(JsonParse.parse("""{"status": "ok"}""")!!)
         assertTrue(fromStatus.ok)
 
+        // El elvis termina en `status == "ok"`, así que el fallback `true`
+        // de boolOr queda inalcanzable: sin payload, ok es false (igual que
+        // el cliente Flutter).
         val empty = HealthStatus.fromJson(emptyMap())
-        assertTrue(empty.ok)
+        assertFalse(empty.ok)
         assertEquals(null, empty.status)
 
         val unhealthy = HealthStatus.fromJson(JsonParse.parse("""{"healthy": false}""")!!)
