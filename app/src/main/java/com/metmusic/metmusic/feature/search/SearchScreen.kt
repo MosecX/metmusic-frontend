@@ -49,6 +49,7 @@ import coil3.compose.AsyncImage
 import com.metmusic.metmusic.core.model.Album
 import com.metmusic.metmusic.core.model.Artist
 import com.metmusic.metmusic.core.model.Playlist
+import com.metmusic.metmusic.core.model.SearchType
 import com.metmusic.metmusic.core.model.Track
 import com.metmusic.metmusic.core.ui.theme.MetMusicColors
 import com.metmusic.metmusic.core.ui.theme.MetMusicTextStyles
