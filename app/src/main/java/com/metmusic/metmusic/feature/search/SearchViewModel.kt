@@ -6,6 +6,7 @@ import com.metmusic.metmusic.core.data.SearchRepository
 import com.metmusic.metmusic.core.model.SearchResults
 import com.metmusic.metmusic.core.model.SearchType
 import com.metmusic.metmusic.core.network.ApiException
+import com.metmusic.metmusic.feature.player.PlayerConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: SearchRepository,
+    private val playerConnection: PlayerConnection,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchState())
@@ -59,6 +61,16 @@ class SearchViewModel @Inject constructor(
         if (_state.value.query.trim().isEmpty()) return
         searchJob?.cancel()
         searchJob = viewModelScope.launch { runSearch() }
+    }
+
+    /**
+     * Reproduce la lista de resultados desde el track tocado. Fire-and-forget:
+     * [PlayerConnection] resuelve las URLs y arranca la reproducción.
+     */
+    fun playTrackAt(index: Int) {
+        val tracks = _state.value.results.tracks
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        playerConnection.playQueue(tracks, index)
     }
 
     private suspend fun runSearch() {
